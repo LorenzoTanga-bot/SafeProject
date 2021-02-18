@@ -60,6 +60,7 @@ static void MX_USART2_UART_Init(void);
 void sendCommand(unsigned char *cmd, int len);
 int receiveData();
 void receiveAck();
+void stopModule();
 void resetModule();
 void loadRespirationApp();
 void configureNoiseMap();
@@ -105,6 +106,7 @@ int main(void) {
 	/* USER CODE BEGIN 2 */
 
 	/* USER CODE END 2 */
+	stopModule();
 	resetModule();
 	loadRespirationApp();
 	configureNoiseMap();
@@ -230,6 +232,7 @@ int receiveData() {
 	int rxBuflen = 0;
 	int rxlen = 0;
 	unsigned char rx[RX_BUF_LENGTH];
+
 	HAL_UART_Receive(&huart2, (uint8_t*) rx, RX_BUF_LENGTH, HAL_MAX_DELAY);
 	while (true) {
 		if (rx[rxlen] == _xt_escape) {
@@ -282,11 +285,19 @@ void receiveAck() {
 			return;
 	}
 }
+void stopModule() {
+	txBuf[0] = _xts_spc_mod_setmode;
+	txBuf[1] = _xts_sm_stop;
+
+	sendCommand(txBuf, 2);
+	receiveAck();
+}
 
 void resetModule() {
 	txBuf[0] = _xts_spc_mod_reset;
 	sendCommand(txBuf, 1);
 	receiveAck();
+
 }
 
 void loadRespirationApp() {

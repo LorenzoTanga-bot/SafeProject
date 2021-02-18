@@ -7,7 +7,7 @@
 #ifndef x4m200_h
 #define x4m200_h
 
-typedef struct resp_data {
+typedef struct RespirationData {
 	bool valid;
 	float movement;
 	int rpm;
