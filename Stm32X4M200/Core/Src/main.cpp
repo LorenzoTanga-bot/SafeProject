@@ -21,7 +21,6 @@
 #include "main.h"
 #include "x4m200.h"
 #include "string.h"
-
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
@@ -33,9 +32,9 @@
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
+/* USER CODE BEGIN PD */
 #define RX_BUF_LENGTH 64
 #define TX_BUF_LENGTH 64
-/* USER CODE BEGIN PD */
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -44,10 +43,10 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+__IO ITStatus UartReady = SET;
 UART_HandleTypeDef huart2;
-unsigned char rxBuf[RX_BUF_LENGTH];
-unsigned char txBuf[TX_BUF_LENGTH];
-
+static unsigned char rxBuf[RX_BUF_LENGTH];
+static unsigned char txBuf[TX_BUF_LENGTH];
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -56,6 +55,8 @@ unsigned char txBuf[TX_BUF_LENGTH];
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart);
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart);
 /* USER CODE BEGIN PFP */
 void sendCommand(unsigned char *cmd, int len);
 int receiveData();
@@ -88,7 +89,6 @@ int main(void) {
 
 	/* Reset of all peripherals, Initializes the Flash interface and the Systick. */
 	HAL_Init();
-
 	/* USER CODE BEGIN Init */
 
 	/* USER CODE END Init */
@@ -97,7 +97,6 @@ int main(void) {
 	SystemClock_Config();
 
 	/* USER CODE BEGIN SysInit */
-
 	/* USER CODE END SysInit */
 
 	/* Initialize all configured peripherals */
@@ -105,7 +104,7 @@ int main(void) {
 	MX_USART2_UART_Init();
 	/* USER CODE BEGIN 2 */
 
-	/* USER CODE END 2 */
+	HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
 	stopModule();
 	resetModule();
 	loadRespirationApp();
@@ -113,12 +112,38 @@ int main(void) {
 	setSensity(5);
 	setDetectionZone(0.40, 2.00);
 	executeApp();
+	HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
+	/* USER CODE END 2 */
 
 	/* Infinite loop */
 	/* USER CODE BEGIN WHILE */
 	while (1) {
 		/* USER CODE END WHILE */
 		data = getRespirationData();
+		if (data.valid == true)
+			switch (data.code) {
+			case _xts_val_resp_state_breathing:
+				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_SET);
+				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET);
+				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, GPIO_PIN_RESET);
+				break;
+			case _xts_val_resp_state_movement:
+				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_RESET);
+				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);
+				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, GPIO_PIN_RESET);
+				break;
+			case _xts_val_resp_state_movement_tracking:
+				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_RESET);
+				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET);
+				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, GPIO_PIN_SET);
+				break;
+			default:
+				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_RESET);
+				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET);
+				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, GPIO_PIN_RESET);
+				break;
+
+			}
 		/* USER CODE BEGIN 3 */
 	}
 	/* USER CODE END 3 */
@@ -196,7 +221,8 @@ static void MX_USART2_UART_Init(void) {
 		Error_Handler();
 	}
 	/* USER CODE BEGIN USART2_Init 2 */
-
+	HAL_NVIC_SetPriority(USART2_IRQn, 0, 0);
+	HAL_NVIC_EnableIRQ(USART2_IRQn);
 	/* USER CODE END USART2_Init 2 */
 
 }
@@ -207,10 +233,27 @@ static void MX_USART2_UART_Init(void) {
  * @retval None
  */
 static void MX_GPIO_Init(void) {
+	GPIO_InitTypeDef GPIO_InitStruct = { 0 };
 
 	/* GPIO Ports Clock Enable */
+	__HAL_RCC_GPIOB_CLK_ENABLE();
 	__HAL_RCC_GPIOA_CLK_ENABLE();
 
+	/*Configure GPIO pin Output Level */
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7,
+			GPIO_PIN_RESET);
+
+	/*Configure GPIO pins : PB5 PB6 PB7 */
+	GPIO_InitStruct.Pin = GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7;
+	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+	HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+}
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
+	UartReady = SET;
 }
 
 /* USER CODE BEGIN 4 */
@@ -225,18 +268,25 @@ void sendCommand(unsigned char *cmd, int len) {
 	tx[len + 2] = _xt_stop;
 
 	HAL_UART_Transmit(&huart2, (uint8_t*) tx, len + 3, HAL_MAX_DELAY);
+	HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_5);
 
 }
 
-int receiveData() {
+int receiveData(int lengthDataReceive) {
 	int rxBuflen = 0;
 	int rxlen = 0;
-	unsigned char rx[RX_BUF_LENGTH];
+	unsigned char rx[lengthDataReceive];
 
-	HAL_UART_Receive(&huart2, (uint8_t*) rx, RX_BUF_LENGTH, HAL_MAX_DELAY);
+	if(UartReady == SET) {
+	    UartReady = RESET;
+	    HAL_UART_Receive_IT(&huart2, (uint8_t*) rx, lengthDataReceive);
+	}
+	while(UartReady == RESET);
+	HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_5);
+
 	while (true) {
 		if (rx[rxlen] == _xt_escape) {
-			if (rxlen >= RX_BUF_LENGTH)
+			if (rxlen >= lengthDataReceive)
 				return -1;
 			else
 				rxlen++;
@@ -247,10 +297,10 @@ int receiveData() {
 		}
 	}
 	while (true) {
-		if (rxBuflen >= RX_BUF_LENGTH || rxlen >= RX_BUF_LENGTH)
+		if (rxBuflen >= RX_BUF_LENGTH || rxlen >= lengthDataReceive)
 			return -1;
 		if (rx[rxlen] == _xt_escape) {
-			if (rxlen >= RX_BUF_LENGTH)
+			if (rxlen >= lengthDataReceive)
 				return -1;
 			else
 				rxlen++;
@@ -280,7 +330,7 @@ int receiveData() {
 
 void receiveAck() {
 	while (true) {
-		receiveData();
+		receiveData(4);
 		if (rxBuf[1] == _xts_spr_ack || rxBuf[2] == _xts_spr_ack)
 			return;
 	}
@@ -291,13 +341,17 @@ void stopModule() {
 
 	sendCommand(txBuf, 2);
 	receiveAck();
+
 }
 
 void resetModule() {
 	txBuf[0] = _xts_spc_mod_reset;
 	sendCommand(txBuf, 1);
 	receiveAck();
-
+	while (true)
+		if (receiveData(8) > 0 && rxBuf[1] == _xts_spr_system
+				&& rxBuf[2] == _xts_sprs_ready)
+			break;
 }
 
 void loadRespirationApp() {
@@ -344,12 +398,14 @@ void executeApp() {
 	txBuf[1] = _xts_sm_run;
 
 	sendCommand(txBuf, 2);
+	receiveAck();
 }
 
 RespirationData getRespirationData() {
 	RespirationData data;
+	int receiveLenght = receiveData(36);
 
-	if (receiveData() < 0 || rxBuf[1] != _xts_spr_appdata) {
+	if (receiveLenght < 0 || rxBuf[1] != _xts_spr_appdata) {
 		data.valid = false;
 		return data;
 	}

@@ -1,16 +1,17 @@
-main.cpp:82:5:int main()	48	static
-main.cpp:131:6:void SystemClock_Config()	128	static
-main.cpp:176:13:void MX_USART2_UART_Init()	8	static
-main.cpp:209:13:void MX_GPIO_Init()	16	static
-main.cpp:217:6:void sendCommand(unsigned char*, int)	72	dynamic
-main.cpp:231:5:int receiveData()	88	static
-main.cpp:281:6:void receiveAck()	8	static
-main.cpp:288:6:void stopModule()	8	static
-main.cpp:296:6:void resetModule()	8	static
-main.cpp:303:6:void loadRespirationApp()	8	static
-main.cpp:310:6:void configureNoiseMap()	8	static
-main.cpp:321:6:void setSensity(int)	16	static
-main.cpp:330:6:void setDetectionZone(float, float)	16	static
-main.cpp:342:6:void executeApp()	8	static
-main.cpp:349:17:RespirationData getRespirationData()	16	static
-main.cpp:372:6:void Error_Handler()	8	static,ignoring_inline_asm
+main.cpp:83:5:int main()	48	static
+main.cpp:156:6:void SystemClock_Config()	128	static
+main.cpp:201:13:void MX_USART2_UART_Init()	8	static
+main.cpp:235:13:void MX_GPIO_Init()	48	static
+main.cpp:255:6:void HAL_UART_RxCpltCallback(UART_HandleTypeDef*)	16	static
+main.cpp:260:6:void sendCommand(unsigned char*, int)	72	dynamic
+main.cpp:275:5:int receiveData(int)	72	dynamic
+main.cpp:331:6:void receiveAck()	8	static
+main.cpp:338:6:void stopModule()	8	static
+main.cpp:347:6:void resetModule()	8	static
+main.cpp:357:6:void loadRespirationApp()	8	static
+main.cpp:364:6:void configureNoiseMap()	8	static
+main.cpp:375:6:void setSensity(int)	16	static
+main.cpp:384:6:void setDetectionZone(float, float)	16	static
+main.cpp:396:6:void executeApp()	8	static
+main.cpp:404:17:RespirationData getRespirationData()	24	static
+main.cpp:428:6:void Error_Handler()	8	static,ignoring_inline_asm
