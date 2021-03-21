@@ -105,7 +105,6 @@ const unsigned char _xts_spc_output = 0x41;
 const unsigned char _xtid_output_control_disable = 0x00;
 const unsigned char _xtid_output_control_enable = 0x01;
 
-
 #define LORAWAN_MAX_BAT   254
 
 /*!
@@ -166,8 +165,11 @@ lora_AppData_t AppData = { AppDataBuff, 0, 0 };
 
 __IO ITStatus UartReady = SET;
 unsigned char rxBuf[RX_BUF_LENGTH];
-unsigned char rx[RX_BUF_LENGTH];
+int rxBufferlen = 0;
+unsigned char rx[1];
+bool beforeEscape = false;
 unsigned char txBuf[TX_BUF_LENGTH];
+bool debugFlag = false;
 /* Private function prototypes -----------------------------------------------*/
 
 /* call back when LoRa endNode has received a frame*/
@@ -265,14 +267,33 @@ void USART1_IRQHandler(void) {
 
 /* This callback is called by the HAL_UART_IRQHandler when the given number of bytes are received */
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
-	if ( USART1 == huartHandle1.Instance && !sendingPacket) //Determine whether it is serial port 1
-			{
-		PRINTF("Packet received: ");
-		for (int i = 0; rx[i] != _xt_stop; i++)
-			PRINTF("%02X ", rx[i]);
-		PRINTF("7E\r\n");
+	if (USART1 == huartHandle1.Instance && !sendingPacket) {
+		if (rxBufferlen == 0 && rx[0] == _xt_start) {
+			memset(rxBuf, 0, RX_BUF_LENGTH);
+			rxBuf[rxBufferlen++] = _xt_start;
+		} else {
+			if (beforeEscape) {
+				rxBuf[rxBufferlen++] = rx[0];
+				beforeEscape = false;
+			} else if (rx[0] == _xt_escape)
+				beforeEscape = true;
+			else
+				rxBuf[rxBufferlen++] = rx[0];
+		}
 
-		UartReady = SET;
+		if (rx[0] == _xt_stop && !beforeEscape) {
+
+			if (debugFlag) {
+				PRINTF("Rx: ");
+				for (int i = 0; i < rxBufferlen; i++)
+					PRINTF("%2x ", rxBuf[i]);
+				PRINTF("\r\n");
+			}
+
+			UartReady = SET;
+
+		} else
+			HAL_UART_Receive_IT(&huartHandle1, (uint8_t*) rx, 1);
 
 		__HAL_UART_FLUSH_DRREGISTER(&huartHandle1);
 	}
@@ -324,64 +345,34 @@ void sendCommand(unsigned char *cmd, int len) {
 	tx[len + 1] = crc;
 	tx[len + 2] = _xt_stop;
 
+	if (debugFlag) {
+		PRINTF("Tx: ");
+		for (int i = 0; i < len + 3; i++)
+			PRINTF("%2x ", tx[i]);
+		PRINTF("\r\n");
+	}
+
 	HAL_UART_Transmit(&huartHandle1, (uint8_t*) tx, len + 3, HAL_MAX_DELAY);
 
 }
 
 int receiveData(int lengthDataReceive) {
-	int rxBuflen = 0;
-	int rxlen = 0;
 
 	if (UartReady == SET) {
 		UartReady = RESET;
-		HAL_UART_Receive_IT(&huartHandle1, (uint8_t*) rx, lengthDataReceive);
+		rxBufferlen = 0;
+		HAL_UART_Receive_IT(&huartHandle1, (uint8_t*) rx, 1);
 	}
 	while (UartReady == RESET)
 		;
 
-	while (true) {
-		if (rxlen >= lengthDataReceive)
-					return -1;
-		if (rx[rxlen] == _xt_escape) {
-			if (rxlen >= lengthDataReceive)
-				return -1;
-			else
-				rxlen++;
-		}
-		if (rx[rxlen] == _xt_start) {
-			rxBuf[rxBuflen++] = rx[rxlen++];
-			break;
-		}
-		rxlen++;
-	}
-	while (true) {
-		if (rxBuflen >= RX_BUF_LENGTH || rxlen >= lengthDataReceive)
-			return -1;
-		if (rx[rxlen] == _xt_escape) {
-			if (rxlen >= lengthDataReceive)
-				return -1;
-			else
-				rxlen++;
-		}
-		if (rx[rxlen] == _xt_start) {
-			rxBuflen = 0;
-			rxBuf[rxBuflen++] = rx[rxlen++];
-		}
-		if (rx[rxlen] == _xt_stop) {
-			rxBuf[rxBuflen++] = rx[rxlen];
-			break;
-		}
-		rxBuf[rxBuflen++] = rx[rxlen++];
-	}
-
 	char crc = 0;
-	for (int i = 0; i < rxBuflen - 2; i++)
+	for (int i = 0; i < rxBufferlen - 2; i++)
 		crc ^= rxBuf[i];
-	PRINTF("CRC: %2x \r\n", crc);
-	if (crc == rxBuf[rxBuflen - 2]) {
-		return rxBuflen;
-	} else {
 
+	if (crc == rxBuf[rxBufferlen - 2]) {
+		return rxBufferlen;
+	} else {
 		return -1;
 	}
 }
@@ -407,9 +398,9 @@ void resetModule() {
 	sendCommand(txBuf, 1);
 	receiveAck();
 	while (true)
-			if (receiveData(8) > 0 && rxBuf[1] == _xts_spr_system
-					&& rxBuf[2] == _xts_sprs_ready)
-				break;
+		if (receiveData(8) > 0 && rxBuf[1] == _xts_spr_system
+				&& rxBuf[2] == _xts_sprs_ready)
+			break;
 }
 
 void loadRespirationApp() {
@@ -430,7 +421,7 @@ void configureNoiseMap() {
 	receiveAck();
 }
 
-void setSensity(int sensitivity) {
+void setSensity(long sensitivity) {
 	txBuf[0] = _xts_spc_appcommand;
 	txBuf[1] = _xts_spca_set;
 	memcpy(txBuf + 2, &_xts_id_sensitivity, 4);
@@ -491,8 +482,7 @@ int main(void) {
 	SystemClock_Config();
 
 	/* Configure the debug mode*/
-	//DBG_Init();
-
+//DBG_Init();
 	/* Configure the hardware*/
 	HW_Init();
 
@@ -511,7 +501,7 @@ int main(void) {
 	PRINTF("Load respiration app\r\n");
 	configureNoiseMap();
 	PRINTF("Configure noise map\r\n");
-	setSensity(5);
+	setSensity(9);
 	PRINTF("set sensity\r\n");
 	setDetectionZone(0.40, 2.00);
 	PRINTF("set detection zone\r\n");
@@ -537,27 +527,27 @@ int main(void) {
 
 	LoraStartTx(TX_ON_TIMER);
 
-	while (1) {
+	while (true) {
 		data = getRespirationData();
-		if(data.valid)
-			PRINTF("RESPIRATION DATA CODE: %2x", data.code);
-
-		if (AppProcessRequest == LORA_SET) {
-			/*reset notification flag*/
-			AppProcessRequest = LORA_RESET;
-
-			/*Send*/
-			sendingPacket = true;
-			Send(NULL);
+		if (data.valid) {
+			PRINTF("Respiration code -> %2x\r", data.code);
 		}
 
-		if (LoraMacProcessRequest == LORA_SET) {
-			/*reset notification flag*/
-			LoraMacProcessRequest = LORA_RESET;
-			LoRaMacProcess();
-		}
+		/*if (AppProcessRequest == LORA_SET) {
+		 /*reset notification flag* /
+		 AppProcessRequest = LORA_RESET;
+
+		 /*Send* /
+		 sendingPacket = true;
+		 Send(NULL);
+		 }
+
+		 if (LoraMacProcessRequest == LORA_SET) {
+		 /*reset notification flag* /
+		 LoraMacProcessRequest = LORA_RESET;
+		 LoRaMacProcess();
+		 }*/
 		/* USER CODE BEGIN 2 */
-		HAL_UART_Receive_IT(&huartHandle1, (uint8_t*) buffer, sizeof(buffer));
 		/* USER CODE END 2 	*/
 	}
 }
@@ -609,39 +599,6 @@ static void Send(void *context) {
 	TimerStart(&TxLedTimer);
 #endif
 	AppData.Port = LORAWAN_APP_PORT;
-
-	/*char bytes[10];
-
-	 uint8_t appDataIterator 	= 0;
-
-	 for (size_t i = 0, j = 0; i < (sizeof(buffer) - 2); i += 2, ++j)
-	 {
-	 int digit1 = hex_to_val(buffer[i]);
-
-	 int digit2 = hex_to_val(buffer[i + 1]);
-
-	 if (digit1 == -1 || digit2 == -1)
-	 {
-	 err = 1;
-	 break;
-	 }
-	 bytes[j] = (char) (digit1 * 16 + digit2);
-	 }
-
-	 AppData.Buff[appDataIterator++] = err;
-	 AppData.Buff[appDataIterator++] = bytes[0];
-	 AppData.Buff[appDataIterator++] = bytes[1];
-	 AppData.Buff[appDataIterator++] = bytes[2];
-	 AppData.Buff[appDataIterator++] = bytes[3];
-	 AppData.Buff[appDataIterator++] = bytes[4];
-	 AppData.Buff[appDataIterator++] = bytes[5];
-	 AppData.Buff[appDataIterator++] = bytes[6];
-	 AppData.Buff[appDataIterator++] = bytes[7];
-	 AppData.Buff[appDataIterator++] = bytes[8];
-	 AppData.Buff[appDataIterator++] = bytes[9];
-	 AppData.BuffSize = appDataIterator;
-
-	 */
 
 	uint8_t appDataIterator = 0;
 	uint8_t numberOfResponders = lastRespIndex + 1;
