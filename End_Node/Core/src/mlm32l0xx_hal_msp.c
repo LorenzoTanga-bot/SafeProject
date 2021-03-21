@@ -33,7 +33,6 @@
 /* Private function prototypes -----------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
 
-
 /**
   * @brief This function configures the source of the time base.
   * @brief  don't enable systick

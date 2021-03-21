@@ -25,9 +25,9 @@
 #include "timeServer.h"
 #include "vcom.h"
 #include "version.h"
+
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
-
 //X4M200.h
 typedef struct RespirationData {
 	bool valid;
@@ -105,6 +105,7 @@ const unsigned char _xts_spc_output = 0x41;
 const unsigned char _xtid_output_control_disable = 0x00;
 const unsigned char _xtid_output_control_enable = 0x01;
 
+
 #define LORAWAN_MAX_BAT   254
 
 /*!
@@ -120,22 +121,22 @@ const unsigned char _xtid_output_control_enable = 0x01;
 /*!
  * Defines the application data transmission duty cycle. 5s, value in [ms].
  */
-#define APP_TX_DUTYCYCLE                            10000
+#define APP_TX_DUTYCYCLE                            4000
 /*!
  * LoRaWAN Adaptive Data Rate
  * @note Please note that when ADR is enabled the end-device should be static
  */
-#define LORAWAN_ADR_STATE LORAWAN_ADR_ON
+#define LORAWAN_ADR_STATE LORAWAN_ADR_OFF
 /*!
  * LoRaWAN Default data Rate Data Rate
  * @note Please note that LORAWAN_DEFAULT_DATA_RATE is used only when ADR is disabled
  */
-#define LORAWAN_DEFAULT_DATA_RATE DR_0
+#define LORAWAN_DEFAULT_DATA_RATE DR_5
 /*!
  * LoRaWAN application port
  * @note do not use 224. It is reserved for certification
  */
-#define LORAWAN_APP_PORT                            2
+#define LORAWAN_APP_PORT                            5
 /*!
  * LoRaWAN default endNode class port
  */
@@ -160,6 +161,13 @@ static uint8_t AppDataBuff[LORAWAN_APP_DATA_BUFF_SIZE];
 lora_AppData_t AppData = { AppDataBuff, 0, 0 };
 
 /* Private macro -------------------------------------------------------------*/
+#define RX_BUF_LENGTH 64
+#define TX_BUF_LENGTH 64
+
+__IO ITStatus UartReady = SET;
+unsigned char rxBuf[RX_BUF_LENGTH];
+unsigned char rx[RX_BUF_LENGTH];
+unsigned char txBuf[TX_BUF_LENGTH];
 /* Private function prototypes -----------------------------------------------*/
 
 /* call back when LoRa endNode has received a frame*/
@@ -190,30 +198,6 @@ static void OnTxTimerEvent(void *context);
 static void LoraMacProcessNotify(void);
 
 /* Private variables ---------------------------------------------------------*/
-#define RX_BUF_LENGTH 256
-#define TX_BUF_LENGTH 64
-
-__IO ITStatus UartReady = SET;
-UART_HandleTypeDef huart2;
-unsigned char rxBuf[RX_BUF_LENGTH];
-unsigned char txBuf[TX_BUF_LENGTH];
-
-static void MX_GPIO_Init(void);
-static void MX_USART2_UART_Init(void);
-void sendCommand(unsigned char *cmd, int len);
-int receiveData();
-void receiveAck();
-void stopModule();
-void resetModule();
-void loadRespirationApp();
-void configureNoiseMap();
-void setSensity(int sensitivity);
-void setDetectionZone(float start_zone, float end_zone);
-void executeApp();
-RespirationData getRespirationData();
-
-
-
 /* load Main call backs structure*/
 static LoRaMainCallback_t LoRaMainCallbacks = { LORA_GetBatteryLevel,
 		HW_GetTemperatureLevel, HW_GetUniqueId, HW_GetRandomSeed, LORA_RxData,
@@ -243,139 +227,91 @@ LORAWAN_PUBLIC_NETWORK };
 
 /* Private functions ---------------------------------------------------------*/
 
-/**
- * @brief  Main program
- * @param  None
- * @retval None
- */
-int main(void) {
-	/* STM32 HAL library initialization*/
-	HAL_Init();
+char buffer[22];
+bool sendingPacket = false;
 
-	/* Configure the system clock*/
-	SystemClock_Config();
+struct initiatorInfo {
+	uint8_t panId[2];
+	uint8_t sourceId[2];
+};
 
-	/* Configure the debug mode*/
-	//DBG_Init();
+struct initiatorInfo initiator;
 
-	/* USER CODE BEGIN 1 */
-	MX_GPIO_Init();
-	MX_USART2_UART_Init();
-	PRINTF("Initialize done\r\n\n");
+struct responderInfo {
+	uint8_t destinationId[2];
+	uint8_t distance[4];
+	uint16_t timeout;
+};
 
-	HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
-	stopModule();
-	PRINTF("Stop Module\r\n");
-	resetModule();
-	PRINTF("Reset Module\r\n");
-	loadRespirationApp();
-	PRINTF("Load respiration app\r\n");
-	configureNoiseMap();
-	PRINTF("Configure noise map\r\n");
-	setSensity(5);
-	PRINTF("set sensity\r\n");
-	setDetectionZone(0.40, 2.00);
-	PRINTF("set detection zone\r\n");
-	executeApp();
-	PRINTF("execute app\r\n");
-	HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_7);
-	/* USER CODE END 1 */
+struct responderInfo responders[10];
+uint8_t lastRespIndex = -1;
 
-	/*Disbale Stand-by mode*/
-	LPM_SetOffMode(LPM_APPLI_Id, LPM_Disable);
+UART_HandleTypeDef huartHandle1;
 
-	/* Configure the Lora Stack*/
-	LORA_Init(&LoRaMainCallbacks, &LoRaParamInit);
-
-	LORA_Join();
-
-	LoraStartTx(TX_ON_TIMER);
-
-	while (1) {
-		if (AppProcessRequest == LORA_SET) {
-			/*reset notification flag*/
-			AppProcessRequest = LORA_RESET;
-			/*Send*/
-			Send(NULL);
-		}
-		if (LoraMacProcessRequest == LORA_SET) {
-			/*reset notification flag*/
-			LoraMacProcessRequest = LORA_RESET;
-			LoRaMacProcess();
-		}
-		/*If a flag is set at this point, mcu must not enter low power and must loop*/
-		DISABLE_IRQ();
-
-		/* if an interrupt has occurred after DISABLE_IRQ, it is kept pending
-		 * and cortex will not enter low power anyway  */
-		if ((LoraMacProcessRequest != LORA_SET)
-				&& (AppProcessRequest != LORA_SET)) {
-#ifndef LOW_POWER_DISABLE
-			LPM_EnterLowPower();
-#endif
-		}
-
-		ENABLE_IRQ();
-
-		/* USER CODE BEGIN 2 */
-		/* USER CODE END 2 */
-	}
+int hex_to_val(const char ch) {
+	if (ch >= '0' && ch <= '9')
+		return ch - '0'; /* Simple ASCII arithmetic */
+	else if (ch >= 'a' && ch <= 'f')
+		return 10 + ch - 'a'; /* Because hex-digit a is ten */
+	else if (ch >= 'A' && ch <= 'F')
+		return 10 + ch - 'A'; /* Because hex-digit A is ten */
+	else
+		return -1; /* Not a valid hexadecimal digit */
 }
 
-/**
- * @brief USART2 Initialization Function
- * @param None
- * @retval None
- */
-static void MX_USART2_UART_Init(void) {
+void USART1_IRQHandler(void) {
+	HAL_UART_IRQHandler(&huartHandle1);
+}
 
-	/* USER CODE BEGIN USART2_Init 0 */
+/* This callback is called by the HAL_UART_IRQHandler when the given number of bytes are received */
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
+	if ( USART1 == huartHandle1.Instance && !sendingPacket) //Determine whether it is serial port 1
+			{
+		PRINTF("Packet received: ");
+		for (int i = 0; rx[i] != _xt_stop; i++)
+			PRINTF("%02X ", rx[i]);
+		PRINTF("7E\r\n");
 
-	/* USER CODE END USART2_Init 0 */
+		UartReady = SET;
 
-	/* USER CODE BEGIN USART2_Init 1 */
-
-	/* USER CODE END USART2_Init 1 */
-	huart2.Instance = USART2;
-	huart2.Init.BaudRate = 115200;
-	huart2.Init.WordLength = UART_WORDLENGTH_8B;
-	huart2.Init.StopBits = UART_STOPBITS_1;
-	huart2.Init.Parity = UART_PARITY_NONE;
-	huart2.Init.Mode = UART_MODE_TX_RX;
-	huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-	huart2.Init.OverSampling = UART_OVERSAMPLING_16;
-	if (HAL_UART_Init(&huart2) != HAL_OK) {
-		Error_Handler();
+		__HAL_UART_FLUSH_DRREGISTER(&huartHandle1);
 	}
-	/* USER CODE BEGIN USART2_Init 2 */
-	HAL_NVIC_SetPriority(USART2_IRQn, 0, 0);
-	HAL_NVIC_EnableIRQ(USART2_IRQn);
-	/* USER CODE END USART2_Init 2 */
 
 }
 
-static void MX_GPIO_Init(void) {
-	GPIO_InitTypeDef GPIO_InitStruct = { 0 };
+void huartHandleInit() {
+	huartHandle1.Instance = USART1;
+	huartHandle1.Init.BaudRate = 115200;
+	huartHandle1.Init.WordLength = UART_WORDLENGTH_8B;
+	huartHandle1.Init.StopBits = UART_STOPBITS_1;
+	huartHandle1.Init.Parity = UART_PARITY_NONE;
+	huartHandle1.Init.Mode = UART_MODE_TX_RX;
+	huartHandle1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+	huartHandle1.Init.OverSampling = UART_OVERSAMPLING_16;
 
-	/* GPIO Ports Clock Enable */
-	__HAL_RCC_GPIOB_CLK_ENABLE();
-	__HAL_RCC_GPIOA_CLK_ENABLE();
+	HAL_UART_Init(&huartHandle1);
+	HAL_NVIC_SetPriority(USART1_IRQn, 0, 0);
+	HAL_NVIC_EnableIRQ(USART1_IRQn);
+}
 
-	/*Configure GPIO pin Output Level */
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7,
-			GPIO_PIN_RESET);
+void gpioInit() {
+	GPIO_InitTypeDef GPIO_InitStruct;
+	__GPIOA_CLK_ENABLE()
+	;
+	__USART1_CLK_ENABLE();
 
-	/*Configure GPIO pins : PB5 PB6 PB7 */
-	GPIO_InitStruct.Pin = GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7;
-	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+	/*		 USART1 GPIO Configuration
+	 PA9     	------> USART1_TX
+	 PA10     	------> USART1_RX
+	 */
+
+	GPIO_InitStruct.Pin = GPIO_PIN_9 | GPIO_PIN_10;
+	GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+	GPIO_InitStruct.Speed = GPIO_SPEED_LOW;
+	GPIO_InitStruct.Alternate = GPIO_AF4_USART1;
+	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-}
-
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
-	UartReady = SET;
 }
 
 void sendCommand(unsigned char *cmd, int len) {
@@ -388,25 +324,24 @@ void sendCommand(unsigned char *cmd, int len) {
 	tx[len + 1] = crc;
 	tx[len + 2] = _xt_stop;
 
-	HAL_UART_Transmit(&huart2, (uint8_t*) tx, len + 3, HAL_MAX_DELAY);
-	HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_5);
-
+	HAL_UART_Transmit(&huartHandle1, (uint8_t*) tx, len + 3, HAL_MAX_DELAY);
 
 }
 
 int receiveData(int lengthDataReceive) {
 	int rxBuflen = 0;
 	int rxlen = 0;
-	unsigned char rx[lengthDataReceive];
 
-	if(UartReady == SET) {
-		    UartReady = RESET;
-		    HAL_UART_Receive_IT(&huart2, (uint8_t*) rx, lengthDataReceive);
+	if (UartReady == SET) {
+		UartReady = RESET;
+		HAL_UART_Receive_IT(&huartHandle1, (uint8_t*) rx, lengthDataReceive);
 	}
-	while(UartReady == RESET);
-	HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_5);
+	while (UartReady == RESET)
+		;
 
 	while (true) {
+		if (rxlen >= lengthDataReceive)
+					return -1;
 		if (rx[rxlen] == _xt_escape) {
 			if (rxlen >= lengthDataReceive)
 				return -1;
@@ -417,6 +352,7 @@ int receiveData(int lengthDataReceive) {
 			rxBuf[rxBuflen++] = rx[rxlen++];
 			break;
 		}
+		rxlen++;
 	}
 	while (true) {
 		if (rxBuflen >= RX_BUF_LENGTH || rxlen >= lengthDataReceive)
@@ -441,7 +377,7 @@ int receiveData(int lengthDataReceive) {
 	char crc = 0;
 	for (int i = 0; i < rxBuflen - 2; i++)
 		crc ^= rxBuf[i];
-
+	PRINTF("CRC: %2x \r\n", crc);
 	if (crc == rxBuf[rxBuflen - 2]) {
 		return rxBuflen;
 	} else {
@@ -471,9 +407,9 @@ void resetModule() {
 	sendCommand(txBuf, 1);
 	receiveAck();
 	while (true)
-		if (receiveData(8) > 0 && rxBuf[1] == _xts_spr_system
-				&& rxBuf[2] == _xts_sprs_ready)
-			break;
+			if (receiveData(8) > 0 && rxBuf[1] == _xts_spr_system
+					&& rxBuf[2] == _xts_sprs_ready)
+				break;
 }
 
 void loadRespirationApp() {
@@ -542,36 +478,126 @@ RespirationData getRespirationData() {
 
 }
 
+/**
+ * @brief  Main program
+ * @param  None
+ * @retval None
+ */
+int main(void) {
+	/* STM32 HAL library initialization*/
+	HAL_Init();
+
+	/* Configure the system clock*/
+	SystemClock_Config();
+
+	/* Configure the debug mode*/
+	//DBG_Init();
+
+	/* Configure the hardware*/
+	HW_Init();
+
+	/* USER CODE BEGIN 1 */
+	RespirationData data;
+
+	gpioInit();
+
+	huartHandleInit();
+
+	stopModule();
+	PRINTF("Stop Module\r\n");
+	resetModule();
+	PRINTF("Reset Module\r\n");
+	loadRespirationApp();
+	PRINTF("Load respiration app\r\n");
+	configureNoiseMap();
+	PRINTF("Configure noise map\r\n");
+	setSensity(5);
+	PRINTF("set sensity\r\n");
+	setDetectionZone(0.40, 2.00);
+	PRINTF("set detection zone\r\n");
+	executeApp();
+	PRINTF("execute app\r\n");
+	/* USER CODE END 1 */
+
+	/*Disable Stand-by mode*/
+	LPM_SetOffMode(LPM_APPLI_Id, LPM_Disable);
+
+	PRINTF("APP_VERSION= %02X.%02X.%02X.%02X\r\n",
+			(uint8_t)(__APP_VERSION >> 24), (uint8_t)(__APP_VERSION >> 16),
+			(uint8_t)(__APP_VERSION >> 8), (uint8_t)__APP_VERSION);
+	PRINTF("MAC_VERSION= %02X.%02X.%02X.%02X\r\n",
+			(uint8_t)(__LORA_MAC_VERSION >> 24),
+			(uint8_t)(__LORA_MAC_VERSION >> 16),
+			(uint8_t)(__LORA_MAC_VERSION >> 8), (uint8_t)__LORA_MAC_VERSION);
+
+	/* Configure the Lora Stack*/
+	LORA_Init(&LoRaMainCallbacks, &LoRaParamInit);
+
+	LORA_Join();
+
+	LoraStartTx(TX_ON_TIMER);
+
+	while (1) {
+		data = getRespirationData();
+		if(data.valid)
+			PRINTF("RESPIRATION DATA CODE: %2x", data.code);
+
+		if (AppProcessRequest == LORA_SET) {
+			/*reset notification flag*/
+			AppProcessRequest = LORA_RESET;
+
+			/*Send*/
+			sendingPacket = true;
+			Send(NULL);
+		}
+
+		if (LoraMacProcessRequest == LORA_SET) {
+			/*reset notification flag*/
+			LoraMacProcessRequest = LORA_RESET;
+			LoRaMacProcess();
+		}
+		/* USER CODE BEGIN 2 */
+		HAL_UART_Receive_IT(&huartHandle1, (uint8_t*) buffer, sizeof(buffer));
+		/* USER CODE END 2 	*/
+	}
+}
+
 void LoraMacProcessNotify(void) {
 	LoraMacProcessRequest = LORA_SET;
 }
 
 static void LORA_HasJoined(void) {
 #if( OVER_THE_AIR_ACTIVATION != 0 )
-	PRINTF("JOINED\n\r");
+  PRINTF("JOINED\n\r");
 #endif
 	LORA_RequestClass(LORAWAN_DEFAULT_CLASS);
 }
 
 static void Send(void *context) {
 	/* USER CODE BEGIN 3 */
-	uint16_t pressure = 0;
-	int16_t temperature = 0;
-	uint16_t humidity = 0;
-	uint8_t batteryLevel;
-	sensor_t sensor_data;
+
+	for (uint8_t iter = 0; iter < sizeof(responders); iter++) {
+		if (responders[iter].destinationId[0] != '\0') {
+			if (responders[iter].timeout == 0) {
+				responders[iter] = responders[lastRespIndex];
+				memset(responders[lastRespIndex].destinationId, '\0',
+						sizeof(responders[lastRespIndex].destinationId));
+
+				memset(responders[lastRespIndex].distance, '\0',
+						sizeof(responders[lastRespIndex].distance));
+				responders[lastRespIndex].timeout = 0;
+				lastRespIndex--;
+			} else
+				responders[iter].timeout = responders[iter].timeout - 4000;
+		} else
+			break;
+	}
 
 	if (LORA_JoinStatus() != LORA_SET) {
 		/*Not joined, try again later*/
 		LORA_Join();
 		return;
 	}
-
-	TVL1(PRINTF("SEND REQUEST\n\r");)
-#ifndef CAYENNE_LPP
-	int32_t latitude, longitude = 0;
-	uint16_t altitudeGps = 0;
-#endif
 
 #ifdef USE_B_L072Z_LRWAN1
 	TimerInit(&TxLedTimer, OnTimerLedEvent);
@@ -582,86 +608,67 @@ static void Send(void *context) {
 
 	TimerStart(&TxLedTimer);
 #endif
-
-	BSP_sensor_Read(&sensor_data);
-
-#ifdef CAYENNE_LPP
-  uint8_t cchannel = 0;
-  temperature = (int16_t)(sensor_data.temperature * 10);         /* in �C * 10 */
-  pressure    = (uint16_t)(sensor_data.pressure * 100 / 10);      /* in hPa / 10 */
-  humidity    = (uint16_t)(sensor_data.humidity * 2);            /* in %*2     */
-  uint32_t i = 0;
-
-  batteryLevel = LORA_GetBatteryLevel();                      /* 1 (very low) to 254 (fully charged) */
-
-  AppData.Port = LPP_APP_PORT;
-
-  AppData.Buff[i++] = cchannel++;
-  AppData.Buff[i++] = LPP_DATATYPE_BAROMETER;
-  AppData.Buff[i++] = (pressure >> 8) & 0xFF;
-  AppData.Buff[i++] = pressure & 0xFF;
-  AppData.Buff[i++] = cchannel++;
-  AppData.Buff[i++] = LPP_DATATYPE_TEMPERATURE;
-  AppData.Buff[i++] = (temperature >> 8) & 0xFF;
-  AppData.Buff[i++] = temperature & 0xFF;
-  AppData.Buff[i++] = cchannel++;
-  AppData.Buff[i++] = LPP_DATATYPE_HUMIDITY;
-  AppData.Buff[i++] = humidity & 0xFF;
-#if defined( REGION_US915 ) || defined ( REGION_AU915 ) || defined ( REGION_AS923 )
-  /* The maximum payload size does not allow to send more data for lowest DRs */
-#else
-  AppData.Buff[i++] = cchannel++;
-  AppData.Buff[i++] = LPP_DATATYPE_DIGITAL_INPUT;
-  AppData.Buff[i++] = batteryLevel * 100 / 254;
-  AppData.Buff[i++] = cchannel++;
-  AppData.Buff[i++] = LPP_DATATYPE_DIGITAL_OUTPUT;
-  AppData.Buff[i++] = AppLedStateOn;
-#endif  /* REGION_XX915 */
-#else  /* not CAYENNE_LPP */
-
-	temperature = (int16_t) (sensor_data.temperature * 100); /* in �C * 100 */
-	pressure = (uint16_t) (sensor_data.pressure * 100 / 10); /* in hPa / 10 */
-	humidity = (uint16_t) (sensor_data.humidity * 10); /* in %*10     */
-	latitude = sensor_data.latitude;
-	longitude = sensor_data.longitude;
-	uint32_t i = 0;
-
-	batteryLevel = LORA_GetBatteryLevel(); /* 1 (very low) to 254 (fully charged) */
-
 	AppData.Port = LORAWAN_APP_PORT;
 
-#if defined( REGION_US915 ) || defined ( REGION_AU915 ) || defined ( REGION_AS923 )
-  AppData.Buff[i++] = AppLedStateOn;
-  AppData.Buff[i++] = (pressure >> 8) & 0xFF;
-  AppData.Buff[i++] = pressure & 0xFF;
-  AppData.Buff[i++] = (temperature >> 8) & 0xFF;
-  AppData.Buff[i++] = temperature & 0xFF;
-  AppData.Buff[i++] = (humidity >> 8) & 0xFF;
-  AppData.Buff[i++] = humidity & 0xFF;
-  AppData.Buff[i++] = batteryLevel;
-  AppData.Buff[i++] = 0;
-  AppData.Buff[i++] = 0;
-  AppData.Buff[i++] = 0;
-#else  /* not REGION_XX915 */
-	AppData.Buff[i++] = AppLedStateOn;
-	AppData.Buff[i++] = (pressure >> 8) & 0xFF;
-	AppData.Buff[i++] = pressure & 0xFF;
-	AppData.Buff[i++] = (temperature >> 8) & 0xFF;
-	AppData.Buff[i++] = temperature & 0xFF;
-	AppData.Buff[i++] = (humidity >> 8) & 0xFF;
-	AppData.Buff[i++] = humidity & 0xFF;
-	AppData.Buff[i++] = batteryLevel;
-	AppData.Buff[i++] = (latitude >> 16) & 0xFF;
-	AppData.Buff[i++] = (latitude >> 8) & 0xFF;
-	AppData.Buff[i++] = latitude & 0xFF;
-	AppData.Buff[i++] = (longitude >> 16) & 0xFF;
-	AppData.Buff[i++] = (longitude >> 8) & 0xFF;
-	AppData.Buff[i++] = longitude & 0xFF;
-	AppData.Buff[i++] = (altitudeGps >> 8) & 0xFF;
-	AppData.Buff[i++] = altitudeGps & 0xFF;
-#endif  /* REGION_XX915 */
-#endif  /* CAYENNE_LPP */
-	AppData.BuffSize = i;
+	/*char bytes[10];
+
+	 uint8_t appDataIterator 	= 0;
+
+	 for (size_t i = 0, j = 0; i < (sizeof(buffer) - 2); i += 2, ++j)
+	 {
+	 int digit1 = hex_to_val(buffer[i]);
+
+	 int digit2 = hex_to_val(buffer[i + 1]);
+
+	 if (digit1 == -1 || digit2 == -1)
+	 {
+	 err = 1;
+	 break;
+	 }
+	 bytes[j] = (char) (digit1 * 16 + digit2);
+	 }
+
+	 AppData.Buff[appDataIterator++] = err;
+	 AppData.Buff[appDataIterator++] = bytes[0];
+	 AppData.Buff[appDataIterator++] = bytes[1];
+	 AppData.Buff[appDataIterator++] = bytes[2];
+	 AppData.Buff[appDataIterator++] = bytes[3];
+	 AppData.Buff[appDataIterator++] = bytes[4];
+	 AppData.Buff[appDataIterator++] = bytes[5];
+	 AppData.Buff[appDataIterator++] = bytes[6];
+	 AppData.Buff[appDataIterator++] = bytes[7];
+	 AppData.Buff[appDataIterator++] = bytes[8];
+	 AppData.Buff[appDataIterator++] = bytes[9];
+	 AppData.BuffSize = appDataIterator;
+
+	 */
+
+	uint8_t appDataIterator = 0;
+	uint8_t numberOfResponders = lastRespIndex + 1;
+	AppData.Buff[appDataIterator++] = numberOfResponders;
+
+	if (numberOfResponders != 0) {
+		AppData.Buff[appDataIterator++] = initiator.panId[0];
+		AppData.Buff[appDataIterator++] = initiator.panId[1];
+		AppData.Buff[appDataIterator++] = initiator.sourceId[0];
+		AppData.Buff[appDataIterator++] = initiator.sourceId[1];
+
+		for (uint8_t index = 0; index < numberOfResponders; index++) {
+			AppData.Buff[appDataIterator++] =
+					responders[index].destinationId[0];
+			AppData.Buff[appDataIterator++] =
+					responders[index].destinationId[1];
+			AppData.Buff[appDataIterator++] = responders[index].distance[0];
+			AppData.Buff[appDataIterator++] = responders[index].distance[1];
+			AppData.Buff[appDataIterator++] = responders[index].distance[2];
+			AppData.Buff[appDataIterator++] = responders[index].distance[3];
+		}
+	}
+
+	AppData.BuffSize = appDataIterator;
+
+	sendingPacket = false;
+	PRINTF("Packet sent!\r\n");
 
 	LORA_send(&AppData, LORAWAN_DEFAULT_CONFIRM_MSG_STATE);
 
@@ -729,6 +736,7 @@ static void OnTxTimerEvent(void *context) {
 	TimerStart(&TxTimer);
 
 	AppProcessRequest = LORA_SET;
+
 }
 
 static void LoraStartTx(TxEventType_t EventType) {
@@ -737,6 +745,7 @@ static void LoraStartTx(TxEventType_t EventType) {
 		TimerInit(&TxTimer, OnTxTimerEvent);
 		TimerSetValue(&TxTimer, APP_TX_DUTYCYCLE);
 		OnTxTimerEvent(NULL);
+
 	} else {
 		/* send everytime button is pushed */
 		GPIO_InitTypeDef initStruct = { 0 };
