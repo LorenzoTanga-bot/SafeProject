@@ -31,9 +31,13 @@
 //X4M200.h
 typedef struct RespirationData {
 	bool valid;
-	float movement;
-	int rpm;
-	char code;
+	char code; //Profile state, see StateCode value table below.
+	int rpm; //respirations per minute (Breathing state only)
+	float distance; //Distance to where respiration is detected (Breathing state only)
+	float movement; //Relative movement of the respiration, in mm (Breathing state only)
+	int signalQuality; //A measure of the signal quality. Typically used to identify
+					   //if the sensor is positioned correctly. Value from 0 to 10 where
+					   //0=low and 10=high. (Breathing state only).
 } RespirationData;
 
 // State codes for respiration
@@ -105,6 +109,14 @@ const unsigned char _xts_spc_output = 0x41;
 const unsigned char _xtid_output_control_disable = 0x00;
 const unsigned char _xtid_output_control_enable = 0x01;
 
+//LoRa DATA
+typedef struct MessageLoRa {
+	char codeState;
+	int signalQualityAvg;
+	float DistanceAvg;
+	int rpmAvg;
+} MessageLoRa;
+
 #define LORAWAN_MAX_BAT   254
 
 /*!
@@ -170,6 +182,12 @@ unsigned char rx[1];
 bool beforeEscape = false;
 unsigned char txBuf[TX_BUF_LENGTH];
 bool debugFlag = false;
+int codeStateCount[5];
+float distanceAvg = 0.0;
+int distanceAvgCount = 0;
+int rpmAvg = 0;
+int rpmAvgCount = 0;
+
 /* Private function prototypes -----------------------------------------------*/
 
 /* call back when LoRa endNode has received a frame*/
@@ -228,8 +246,6 @@ LORAWAN_DEFAULT_DATA_RATE,
 LORAWAN_PUBLIC_NETWORK };
 
 /* Private functions ---------------------------------------------------------*/
-
-char buffer[22];
 bool sendingPacket = false;
 
 struct initiatorInfo {
@@ -356,7 +372,7 @@ void sendCommand(unsigned char *cmd, int len) {
 
 }
 
-int receiveData(int lengthDataReceive) {
+int receiveData() {
 
 	if (UartReady == SET) {
 		UartReady = RESET;
@@ -379,7 +395,7 @@ int receiveData(int lengthDataReceive) {
 
 void receiveAck() {
 	while (true) {
-		receiveData(4);
+		receiveData();
 		if (rxBuf[1] == _xts_spr_ack || rxBuf[2] == _xts_spr_ack)
 			return;
 	}
@@ -398,7 +414,7 @@ void resetModule() {
 	sendCommand(txBuf, 1);
 	receiveAck();
 	while (true)
-		if (receiveData(8) > 0 && rxBuf[1] == _xts_spr_system
+		if (receiveData() > 0 && rxBuf[1] == _xts_spr_system
 				&& rxBuf[2] == _xts_sprs_ready)
 			break;
 }
@@ -450,8 +466,30 @@ void executeApp() {
 	receiveAck();
 }
 
+void x4m200Init(){
+	stopModule();
+	PRINTF("Stop Module\r\n");
+	resetModule();
+	PRINTF("Reset Module\r\n");
+	loadRespirationApp();
+	PRINTF("Load respiration app\r\n");
+	configureNoiseMap();
+	PRINTF("Configure noise map\r\n");
+	setSensity(5);
+	PRINTF("set sensity\r\n");
+	setDetectionZone(0.40, 2.00);
+	PRINTF("set detection zone\r\n");
+	executeApp();
+	PRINTF("execute app\r\n");
+}
+
 RespirationData getRespirationData() {
 	RespirationData data;
+	data.code = 6;
+	data.distance = 0.0;
+	data.movement = 0.0;
+	data.rpm = 0;
+	data.signalQuality = 0;
 	int receiveLenght = receiveData(36);
 
 	if (receiveLenght < 0 || rxBuf[1] != _xts_spr_appdata) {
@@ -459,13 +497,56 @@ RespirationData getRespirationData() {
 		return data;
 	}
 	memcpy(&data.code, &rxBuf[10], 4);
-	if (data.code == _xts_val_resp_state_breathing) {
+	if (data.code == 0) {
 		memcpy(&data.rpm, &rxBuf[14], 4);
+		memcpy(&data.distance, &rxBuf[18], 4);
 		memcpy(&data.movement, &rxBuf[22], 4);
+		memcpy(&data.signalQuality, &rxBuf[26], 4);
 	}
 
 	data.valid = true;
 	return data;
+}
+
+void analyzeResporationData(RespirationData *data) {
+
+	switch (data->code) {
+	case 0:
+		if (distanceAvgCount > 1 && data->distance != 0.0)distanceAvg = (distanceAvgCount * distanceAvg + data->distance) / (distanceAvgCount + 1);
+		if (rpmAvgCount > 1 && data->rpm != 0)rpmAvg = (rpmAvgCount * rpmAvg + data->rpm) / (rpmAvgCount + 1);
+
+		if (distanceAvgCount == 1 && data->distance != 0.0)distanceAvg = (distanceAvg + data->distance) / 2;
+		if (rpmAvgCount == 1 && data->rpm != 0)rpmAvg = (rpmAvg + data->rpm) / 2;
+
+		if (distanceAvgCount == 0 && data->distance != 0.0)distanceAvg = data->distance;
+		if (rpmAvgCount == 0 && data->rpm != 0)rpmAvg = data->rpm;
+
+		if (data->distance != 0.0)distanceAvgCount++;
+		if (data->rpm != 0)rpmAvgCount++;
+
+		codeStateCount[0]++;
+		PRINTF("code count: %d \r\n", codeStateCount[0]);
+		if(codeStateCount[0] % 10 == 0)
+			PRINTF("test");
+		break;
+	case 1:
+		codeStateCount[1]++;
+		PRINTF("code count: %d \r\n", codeStateCount[1]);
+		break;
+	case 2:
+		codeStateCount[2]++;
+		PRINTF("code count: %d \r\n", codeStateCount[2]);
+		break;
+	case 3:
+		codeStateCount[3]++;
+		PRINTF("code count: %d \r\n", codeStateCount[3]);
+		break;
+	default:
+		codeStateCount[4]++;
+		PRINTF("code count: %d \r\n", codeStateCount[4]);
+		break;
+
+	}
 
 }
 
@@ -482,7 +563,7 @@ int main(void) {
 	SystemClock_Config();
 
 	/* Configure the debug mode*/
-//DBG_Init();
+	//DBG_Init();
 	/* Configure the hardware*/
 	HW_Init();
 
@@ -493,20 +574,7 @@ int main(void) {
 
 	huartHandleInit();
 
-	stopModule();
-	PRINTF("Stop Module\r\n");
-	resetModule();
-	PRINTF("Reset Module\r\n");
-	loadRespirationApp();
-	PRINTF("Load respiration app\r\n");
-	configureNoiseMap();
-	PRINTF("Configure noise map\r\n");
-	setSensity(9);
-	PRINTF("set sensity\r\n");
-	setDetectionZone(0.40, 2.00);
-	PRINTF("set detection zone\r\n");
-	executeApp();
-	PRINTF("execute app\r\n");
+	x4m200Init();
 	/* USER CODE END 1 */
 
 	/*Disable Stand-by mode*/
@@ -530,25 +598,26 @@ int main(void) {
 	while (true) {
 		data = getRespirationData();
 		if (data.valid) {
-			PRINTF("Respiration code -> %2x\r", data.code);
+			PRINTF("Respiration code -> %2x\r\n", data.code);
+			analyzeResporationData(&data);
+
+			/*if (AppProcessRequest == LORA_SET) {
+			 / *reset notification flag* /
+			 AppProcessRequest = LORA_RESET;
+
+			 / *Send* /
+			 sendingPacket = true;
+			 Send(NULL);
+			 }
+
+			 if (LoraMacProcessRequest == LORA_SET) {
+			 / *reset notification flag* /
+			 LoraMacProcessRequest = LORA_RESET;
+			 LoRaMacProcess();
+			 }*/
+			/* USER CODE BEGIN 2 */
+			/* USER CODE END 2 	*/
 		}
-
-		/*if (AppProcessRequest == LORA_SET) {
-		 /*reset notification flag* /
-		 AppProcessRequest = LORA_RESET;
-
-		 /*Send* /
-		 sendingPacket = true;
-		 Send(NULL);
-		 }
-
-		 if (LoraMacProcessRequest == LORA_SET) {
-		 /*reset notification flag* /
-		 LoraMacProcessRequest = LORA_RESET;
-		 LoRaMacProcess();
-		 }*/
-		/* USER CODE BEGIN 2 */
-		/* USER CODE END 2 	*/
 	}
 }
 
@@ -600,29 +669,14 @@ static void Send(void *context) {
 #endif
 	AppData.Port = LORAWAN_APP_PORT;
 
-	uint8_t appDataIterator = 0;
-	uint8_t numberOfResponders = lastRespIndex + 1;
-	AppData.Buff[appDataIterator++] = numberOfResponders;
+	memcpy(&AppData.Buff, &codeStateCount[0], 4); //int
+	memcpy(&AppData.Buff + 4, &codeStateCount[1], 4); //int
+	memcpy(&AppData.Buff + 8, &codeStateCount[2], 4); //int
+	memcpy(&AppData.Buff + 12, &distanceAvg, 4); //float
+	memcpy(&AppData.Buff + 16, &rpmAvg, 4); //int
 
-	if (numberOfResponders != 0) {
-		AppData.Buff[appDataIterator++] = initiator.panId[0];
-		AppData.Buff[appDataIterator++] = initiator.panId[1];
-		AppData.Buff[appDataIterator++] = initiator.sourceId[0];
-		AppData.Buff[appDataIterator++] = initiator.sourceId[1];
 
-		for (uint8_t index = 0; index < numberOfResponders; index++) {
-			AppData.Buff[appDataIterator++] =
-					responders[index].destinationId[0];
-			AppData.Buff[appDataIterator++] =
-					responders[index].destinationId[1];
-			AppData.Buff[appDataIterator++] = responders[index].distance[0];
-			AppData.Buff[appDataIterator++] = responders[index].distance[1];
-			AppData.Buff[appDataIterator++] = responders[index].distance[2];
-			AppData.Buff[appDataIterator++] = responders[index].distance[3];
-		}
-	}
-
-	AppData.BuffSize = appDataIterator;
+	AppData.BuffSize = 20;
 
 	sendingPacket = false;
 	PRINTF("Packet sent!\r\n");
