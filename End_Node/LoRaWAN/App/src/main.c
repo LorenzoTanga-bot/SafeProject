@@ -515,9 +515,6 @@ void analyzeResporationData(RespirationData *data) {
 		if (distanceAvgCount > 1 && data->distance != 0.0)distanceAvg = (distanceAvgCount * distanceAvg + data->distance) / (distanceAvgCount + 1);
 		if (rpmAvgCount > 1 && data->rpm != 0)rpmAvg = (rpmAvgCount * rpmAvg + data->rpm) / (rpmAvgCount + 1);
 
-		if (distanceAvgCount == 1 && data->distance != 0.0)distanceAvg = (distanceAvg + data->distance) / 2;
-		if (rpmAvgCount == 1 && data->rpm != 0)rpmAvg = (rpmAvg + data->rpm) / 2;
-
 		if (distanceAvgCount == 0 && data->distance != 0.0)distanceAvg = data->distance;
 		if (rpmAvgCount == 0 && data->rpm != 0)rpmAvg = data->rpm;
 
@@ -563,7 +560,7 @@ int main(void) {
 	SystemClock_Config();
 
 	/* Configure the debug mode*/
-	//DBG_Init();
+	DBG_Init();
 	/* Configure the hardware*/
 	HW_Init();
 
@@ -601,20 +598,20 @@ int main(void) {
 			PRINTF("Respiration code -> %2x\r\n", data.code);
 			analyzeResporationData(&data);
 
-			/*if (AppProcessRequest == LORA_SET) {
-			 / *reset notification flag* /
-			 AppProcessRequest = LORA_RESET;
-
-			 / *Send* /
-			 sendingPacket = true;
-			 Send(NULL);
-			 }
-
-			 if (LoraMacProcessRequest == LORA_SET) {
-			 / *reset notification flag* /
-			 LoraMacProcessRequest = LORA_RESET;
-			 LoRaMacProcess();
-			 }*/
+//			if (AppProcessRequest == LORA_SET) {
+//				 /*reset notification flag*/
+//				 AppProcessRequest = LORA_RESET;
+//
+//				 /*Send*/
+//				 sendingPacket = true;
+//				 Send(NULL);
+//			}
+//
+//			if (LoraMacProcessRequest == LORA_SET) {
+//				/*reset notification flag*/
+//				LoraMacProcessRequest = LORA_RESET;
+//				LoRaMacProcess();
+//			}
 			/* USER CODE BEGIN 2 */
 			/* USER CODE END 2 	*/
 		}
