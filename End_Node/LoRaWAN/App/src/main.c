@@ -560,7 +560,7 @@ int main(void) {
 	SystemClock_Config();
 
 	/* Configure the debug mode*/
-	DBG_Init();
+	//DBG_Init();
 	/* Configure the hardware*/
 	HW_Init();
 
@@ -598,20 +598,20 @@ int main(void) {
 			PRINTF("Respiration code -> %2x\r\n", data.code);
 			analyzeResporationData(&data);
 
-//			if (AppProcessRequest == LORA_SET) {
-//				 /*reset notification flag*/
-//				 AppProcessRequest = LORA_RESET;
-//
-//				 /*Send*/
-//				 sendingPacket = true;
-//				 Send(NULL);
-//			}
-//
-//			if (LoraMacProcessRequest == LORA_SET) {
-//				/*reset notification flag*/
-//				LoraMacProcessRequest = LORA_RESET;
-//				LoRaMacProcess();
-//			}
+			if (AppProcessRequest == LORA_SET) {
+				 /*reset notification flag*/
+				 AppProcessRequest = LORA_RESET;
+
+				 /*Send*/
+				 sendingPacket = true;
+				 Send(NULL);
+			}
+
+			if (LoraMacProcessRequest == LORA_SET) {
+				/*reset notification flag*/
+				LoraMacProcessRequest = LORA_RESET;
+				LoRaMacProcess();
+			}
 			/* USER CODE BEGIN 2 */
 			/* USER CODE END 2 	*/
 		}
@@ -631,24 +631,6 @@ static void LORA_HasJoined(void) {
 
 static void Send(void *context) {
 	/* USER CODE BEGIN 3 */
-
-	for (uint8_t iter = 0; iter < sizeof(responders); iter++) {
-		if (responders[iter].destinationId[0] != '\0') {
-			if (responders[iter].timeout == 0) {
-				responders[iter] = responders[lastRespIndex];
-				memset(responders[lastRespIndex].destinationId, '\0',
-						sizeof(responders[lastRespIndex].destinationId));
-
-				memset(responders[lastRespIndex].distance, '\0',
-						sizeof(responders[lastRespIndex].distance));
-				responders[lastRespIndex].timeout = 0;
-				lastRespIndex--;
-			} else
-				responders[iter].timeout = responders[iter].timeout - 4000;
-		} else
-			break;
-	}
-
 	if (LORA_JoinStatus() != LORA_SET) {
 		/*Not joined, try again later*/
 		LORA_Join();
@@ -666,12 +648,11 @@ static void Send(void *context) {
 #endif
 	AppData.Port = LORAWAN_APP_PORT;
 
-	memcpy(&AppData.Buff, &codeStateCount[0], 4); //int
-	memcpy(&AppData.Buff + 4, &codeStateCount[1], 4); //int
-	memcpy(&AppData.Buff + 8, &codeStateCount[2], 4); //int
-	memcpy(&AppData.Buff + 12, &distanceAvg, 4); //float
-	memcpy(&AppData.Buff + 16, &rpmAvg, 4); //int
-
+	memcpy(&AppData.Buff, &codeStateCount[0], 4);
+	memcpy(&AppData.Buff + 4, &codeStateCount[1], 4);
+	memcpy(&AppData.Buff + 8, &codeStateCount[2], 4);
+	memcpy(&AppData.Buff + 12, &distanceAvg, 4);
+	memcpy(&AppData.Buff + 16, &rpmAvg, 4);
 
 	AppData.BuffSize = 20;
 
