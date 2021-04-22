@@ -14951,71 +14951,71 @@ LOAD c:/st/stm32cubeide_1.5.1/stm32cubeide/plugins/com.st.stm32cube.ide.mcu.exte
 LOAD c:/st/stm32cubeide_1.5.1/stm32cubeide/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.9-2020-q2-update.win32_1.5.0.202011040924/tools/bin/../lib/gcc/arm-none-eabi/9.3.1/../../../../arm-none-eabi/lib/thumb/v6-m/nofp\libm.a
 LOAD c:/st/stm32cubeide_1.5.1/stm32cubeide/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.9-2020-q2-update.win32_1.5.0.202011040924/tools/bin/../lib/gcc/arm-none-eabi/9.3.1/thumb/v6-m/nofp\libgcc.a
 
-.debug_info     0x0000000000000000    0x5e648
+.debug_info     0x0000000000000000    0x5e649
  .debug_info    0x0000000000000000      0xade Application/App/app_lorawan.o
- .debug_info    0x0000000000000ade     0x2cbb Application/App/lora_app.o
- .debug_info    0x0000000000003799     0x1260 Application/App/lora_info.o
- .debug_info    0x00000000000049f9      0x8d6 Application/Core/adc.o
- .debug_info    0x00000000000052cf     0x184a Application/Core/adc_if.o
- .debug_info    0x0000000000006b19      0x40c Application/Core/dma.o
- .debug_info    0x0000000000006f25      0x5be Application/Core/main.o
- .debug_info    0x00000000000074e3      0xb0f Application/Core/rtc.o
- .debug_info    0x0000000000007ff2     0x1b46 Application/Core/rtc_if.o
- .debug_info    0x0000000000009b38     0x1b19 Application/Core/stm32_lpm_if.o
- .debug_info    0x000000000000b651     0x11ec Application/Core/stm32l0xx_hal_msp.o
- .debug_info    0x000000000000c83d     0x1830 Application/Core/stm32l0xx_it.o
- .debug_info    0x000000000000e06d     0x2024 Application/Core/sys_app.o
- .debug_info    0x0000000000010091     0x12b1 Application/Core/sys_debug.o
- .debug_info    0x0000000000011342      0x188 Application/Core/sys_sensors.o
- .debug_info    0x00000000000114ca      0xdcb Application/Core/usart.o
- .debug_info    0x0000000000012295     0x1618 Application/Core/usart_if.o
- .debug_info    0x00000000000138ad       0x22 Application/SW4STM32/startup_stm32l072xx.o
- .debug_info    0x00000000000138cf     0x18e2 Application/Target/b_l072z_lrwan1_bus.o
- .debug_info    0x00000000000151b1     0x138a Drivers/BSP/B-L072Z-LRWAN1/b-l072z-lrwan1.o
- .debug_info    0x000000000001653b     0x2335 Drivers/BSP/CMWX1ZZABZ_0xx/cmwx1zzabz_0xx.o
- .debug_info    0x0000000000018870      0x3cb Drivers/CMSIS/system_stm32l0xx.o
- .debug_info    0x0000000000018c3b      0xa07 Drivers/STM32L0xx_HAL_Driver/stm32l0xx_hal.o
- .debug_info    0x0000000000019642     0x1158 Drivers/STM32L0xx_HAL_Driver/stm32l0xx_hal_adc.o
- .debug_info    0x000000000001a79a      0x93d Drivers/STM32L0xx_HAL_Driver/stm32l0xx_hal_adc_ex.o
- .debug_info    0x000000000001b0d7      0xb64 Drivers/STM32L0xx_HAL_Driver/stm32l0xx_hal_cortex.o
- .debug_info    0x000000000001bc3b      0x962 Drivers/STM32L0xx_HAL_Driver/stm32l0xx_hal_dma.o
- .debug_info    0x000000000001c59d      0x6ba Drivers/STM32L0xx_HAL_Driver/stm32l0xx_hal_exti.o
- .debug_info    0x000000000001cc57      0x7dc Drivers/STM32L0xx_HAL_Driver/stm32l0xx_hal_gpio.o
- .debug_info    0x000000000001d433      0x747 Drivers/STM32L0xx_HAL_Driver/stm32l0xx_hal_pwr.o
- .debug_info    0x000000000001db7a      0x27f Drivers/STM32L0xx_HAL_Driver/stm32l0xx_hal_pwr_ex.o
- .debug_info    0x000000000001ddf9      0xdc3 Drivers/STM32L0xx_HAL_Driver/stm32l0xx_hal_rcc.o
- .debug_info    0x000000000001ebbc      0x9e5 Drivers/STM32L0xx_HAL_Driver/stm32l0xx_hal_rcc_ex.o
- .debug_info    0x000000000001f5a1      0xf91 Drivers/STM32L0xx_HAL_Driver/stm32l0xx_hal_rtc.o
- .debug_info    0x0000000000020532     0x123a Drivers/STM32L0xx_HAL_Driver/stm32l0xx_hal_rtc_ex.o
- .debug_info    0x000000000002176c     0x202c Drivers/STM32L0xx_HAL_Driver/stm32l0xx_hal_spi.o
- .debug_info    0x0000000000023798     0x217c Drivers/STM32L0xx_HAL_Driver/stm32l0xx_hal_uart.o
- .debug_info    0x0000000000025914      0xcca Drivers/STM32L0xx_HAL_Driver/stm32l0xx_hal_uart_ex.o
- .debug_info    0x00000000000265de      0xe6d Middlewares/LoRaWAN/Crypto/cmac.o
- .debug_info    0x000000000002744b      0xf5a Middlewares/LoRaWAN/Crypto/lorawan_aes.o
- .debug_info    0x00000000000283a5     0x2182 Middlewares/LoRaWAN/Crypto/soft-se.o
- .debug_info    0x000000000002a527     0x4b87 Middlewares/LoRaWAN/LmHandler/LmHandler.o
- .debug_info    0x000000000002f0ae     0x2aad Middlewares/LoRaWAN/LmHandler/LmhpCompliance.o
- .debug_info    0x0000000000031b5b     0x124a Middlewares/LoRaWAN/LmHandler/NvmCtxMgmt.o
- .debug_info    0x0000000000032da5     0x8175 Middlewares/LoRaWAN/Mac/LoRaMac.o
- .debug_info    0x000000000003af1a     0x18d9 Middlewares/LoRaWAN/Mac/LoRaMacAdr.o
- .debug_info    0x000000000003c7f3     0x4b58 Middlewares/LoRaWAN/Mac/LoRaMacClassB.o
- .debug_info    0x000000000004134b     0x1bb6 Middlewares/LoRaWAN/Mac/LoRaMacCommands.o
- .debug_info    0x0000000000042f01     0x1eae Middlewares/LoRaWAN/Mac/LoRaMacConfirmQueue.o
- .debug_info    0x0000000000044daf     0x27fc Middlewares/LoRaWAN/Mac/LoRaMacCrypto.o
- .debug_info    0x00000000000475ab      0xdbc Middlewares/LoRaWAN/Mac/LoRaMacParser.o
- .debug_info    0x0000000000048367      0xf1e Middlewares/LoRaWAN/Mac/LoRaMacSerializer.o
- .debug_info    0x0000000000049285     0x295a Middlewares/LoRaWAN/Mac/Region/Region.o
- .debug_info    0x000000000004bbdf     0x27e3 Middlewares/LoRaWAN/Mac/Region/RegionCommon.o
- .debug_info    0x000000000004e3c2     0x3452 Middlewares/LoRaWAN/Mac/Region/RegionEU868.o
- .debug_info    0x0000000000051814      0xb5a Middlewares/LoRaWAN/Utilities/utilities.o
- .debug_info    0x000000000005236e     0x4a27 Middlewares/SubGHz_Phy/sx1276.o
- .debug_info    0x0000000000056d95     0x18be Utilities/stm32_adv_trace.o
- .debug_info    0x0000000000058653      0xd3d Utilities/stm32_lpm.o
- .debug_info    0x0000000000059390      0xa97 Utilities/stm32_mem.o
- .debug_info    0x0000000000059e27     0x1391 Utilities/stm32_seq.o
- .debug_info    0x000000000005b1b8     0x12ba Utilities/stm32_systime.o
- .debug_info    0x000000000005c472     0x1560 Utilities/stm32_timer.o
- .debug_info    0x000000000005d9d2      0xc76 Utilities/stm32_tiny_vsnprintf.o
+ .debug_info    0x0000000000000ade     0x2cbc Application/App/lora_app.o
+ .debug_info    0x000000000000379a     0x1260 Application/App/lora_info.o
+ .debug_info    0x00000000000049fa      0x8d6 Application/Core/adc.o
+ .debug_info    0x00000000000052d0     0x184a Application/Core/adc_if.o
+ .debug_info    0x0000000000006b1a      0x40c Application/Core/dma.o
+ .debug_info    0x0000000000006f26      0x5be Application/Core/main.o
+ .debug_info    0x00000000000074e4      0xb0f Application/Core/rtc.o
+ .debug_info    0x0000000000007ff3     0x1b46 Application/Core/rtc_if.o
+ .debug_info    0x0000000000009b39     0x1b19 Application/Core/stm32_lpm_if.o
+ .debug_info    0x000000000000b652     0x11ec Application/Core/stm32l0xx_hal_msp.o
+ .debug_info    0x000000000000c83e     0x1830 Application/Core/stm32l0xx_it.o
+ .debug_info    0x000000000000e06e     0x2024 Application/Core/sys_app.o
+ .debug_info    0x0000000000010092     0x12b1 Application/Core/sys_debug.o
+ .debug_info    0x0000000000011343      0x188 Application/Core/sys_sensors.o
+ .debug_info    0x00000000000114cb      0xdcb Application/Core/usart.o
+ .debug_info    0x0000000000012296     0x1618 Application/Core/usart_if.o
+ .debug_info    0x00000000000138ae       0x22 Application/SW4STM32/startup_stm32l072xx.o
+ .debug_info    0x00000000000138d0     0x18e2 Application/Target/b_l072z_lrwan1_bus.o
+ .debug_info    0x00000000000151b2     0x138a Drivers/BSP/B-L072Z-LRWAN1/b-l072z-lrwan1.o
+ .debug_info    0x000000000001653c     0x2335 Drivers/BSP/CMWX1ZZABZ_0xx/cmwx1zzabz_0xx.o
+ .debug_info    0x0000000000018871      0x3cb Drivers/CMSIS/system_stm32l0xx.o
+ .debug_info    0x0000000000018c3c      0xa07 Drivers/STM32L0xx_HAL_Driver/stm32l0xx_hal.o
+ .debug_info    0x0000000000019643     0x1158 Drivers/STM32L0xx_HAL_Driver/stm32l0xx_hal_adc.o
+ .debug_info    0x000000000001a79b      0x93d Drivers/STM32L0xx_HAL_Driver/stm32l0xx_hal_adc_ex.o
+ .debug_info    0x000000000001b0d8      0xb64 Drivers/STM32L0xx_HAL_Driver/stm32l0xx_hal_cortex.o
+ .debug_info    0x000000000001bc3c      0x962 Drivers/STM32L0xx_HAL_Driver/stm32l0xx_hal_dma.o
+ .debug_info    0x000000000001c59e      0x6ba Drivers/STM32L0xx_HAL_Driver/stm32l0xx_hal_exti.o
+ .debug_info    0x000000000001cc58      0x7dc Drivers/STM32L0xx_HAL_Driver/stm32l0xx_hal_gpio.o
+ .debug_info    0x000000000001d434      0x747 Drivers/STM32L0xx_HAL_Driver/stm32l0xx_hal_pwr.o
+ .debug_info    0x000000000001db7b      0x27f Drivers/STM32L0xx_HAL_Driver/stm32l0xx_hal_pwr_ex.o
+ .debug_info    0x000000000001ddfa      0xdc3 Drivers/STM32L0xx_HAL_Driver/stm32l0xx_hal_rcc.o
+ .debug_info    0x000000000001ebbd      0x9e5 Drivers/STM32L0xx_HAL_Driver/stm32l0xx_hal_rcc_ex.o
+ .debug_info    0x000000000001f5a2      0xf91 Drivers/STM32L0xx_HAL_Driver/stm32l0xx_hal_rtc.o
+ .debug_info    0x0000000000020533     0x123a Drivers/STM32L0xx_HAL_Driver/stm32l0xx_hal_rtc_ex.o
+ .debug_info    0x000000000002176d     0x202c Drivers/STM32L0xx_HAL_Driver/stm32l0xx_hal_spi.o
+ .debug_info    0x0000000000023799     0x217c Drivers/STM32L0xx_HAL_Driver/stm32l0xx_hal_uart.o
+ .debug_info    0x0000000000025915      0xcca Drivers/STM32L0xx_HAL_Driver/stm32l0xx_hal_uart_ex.o
+ .debug_info    0x00000000000265df      0xe6d Middlewares/LoRaWAN/Crypto/cmac.o
+ .debug_info    0x000000000002744c      0xf5a Middlewares/LoRaWAN/Crypto/lorawan_aes.o
+ .debug_info    0x00000000000283a6     0x2182 Middlewares/LoRaWAN/Crypto/soft-se.o
+ .debug_info    0x000000000002a528     0x4b87 Middlewares/LoRaWAN/LmHandler/LmHandler.o
+ .debug_info    0x000000000002f0af     0x2aad Middlewares/LoRaWAN/LmHandler/LmhpCompliance.o
+ .debug_info    0x0000000000031b5c     0x124a Middlewares/LoRaWAN/LmHandler/NvmCtxMgmt.o
+ .debug_info    0x0000000000032da6     0x8175 Middlewares/LoRaWAN/Mac/LoRaMac.o
+ .debug_info    0x000000000003af1b     0x18d9 Middlewares/LoRaWAN/Mac/LoRaMacAdr.o
+ .debug_info    0x000000000003c7f4     0x4b58 Middlewares/LoRaWAN/Mac/LoRaMacClassB.o
+ .debug_info    0x000000000004134c     0x1bb6 Middlewares/LoRaWAN/Mac/LoRaMacCommands.o
+ .debug_info    0x0000000000042f02     0x1eae Middlewares/LoRaWAN/Mac/LoRaMacConfirmQueue.o
+ .debug_info    0x0000000000044db0     0x27fc Middlewares/LoRaWAN/Mac/LoRaMacCrypto.o
+ .debug_info    0x00000000000475ac      0xdbc Middlewares/LoRaWAN/Mac/LoRaMacParser.o
+ .debug_info    0x0000000000048368      0xf1e Middlewares/LoRaWAN/Mac/LoRaMacSerializer.o
+ .debug_info    0x0000000000049286     0x295a Middlewares/LoRaWAN/Mac/Region/Region.o
+ .debug_info    0x000000000004bbe0     0x27e3 Middlewares/LoRaWAN/Mac/Region/RegionCommon.o
+ .debug_info    0x000000000004e3c3     0x3452 Middlewares/LoRaWAN/Mac/Region/RegionEU868.o
+ .debug_info    0x0000000000051815      0xb5a Middlewares/LoRaWAN/Utilities/utilities.o
+ .debug_info    0x000000000005236f     0x4a27 Middlewares/SubGHz_Phy/sx1276.o
+ .debug_info    0x0000000000056d96     0x18be Utilities/stm32_adv_trace.o
+ .debug_info    0x0000000000058654      0xd3d Utilities/stm32_lpm.o
+ .debug_info    0x0000000000059391      0xa97 Utilities/stm32_mem.o
+ .debug_info    0x0000000000059e28     0x1391 Utilities/stm32_seq.o
+ .debug_info    0x000000000005b1b9     0x12ba Utilities/stm32_systime.o
+ .debug_info    0x000000000005c473     0x1560 Utilities/stm32_timer.o
+ .debug_info    0x000000000005d9d3      0xc76 Utilities/stm32_tiny_vsnprintf.o
 
 .debug_abbrev   0x0000000000000000     0xc691
  .debug_abbrev  0x0000000000000000      0x1f9 Application/App/app_lorawan.o
@@ -15531,10 +15531,10 @@ LOAD c:/st/stm32cubeide_1.5.1/stm32cubeide/plugins/com.st.stm32cube.ide.mcu.exte
  .debug_line    0x000000000003f9c0      0x91b Utilities/stm32_tiny_vsnprintf.o
 
 .debug_str      0x0000000000000000    0xaf1c5
- .debug_str     0x0000000000000000     0x81d1 Application/App/app_lorawan.o
-                                       0x84a2 (size before relaxing)
- .debug_str     0x00000000000081d1    0x86a05 Application/App/lora_app.o
-                                      0x8f36e (size before relaxing)
+ .debug_str     0x0000000000000000     0x81d0 Application/App/app_lorawan.o
+                                       0x84a1 (size before relaxing)
+ .debug_str     0x00000000000081d0    0x86a06 Application/App/lora_app.o
+                                      0x8f36d (size before relaxing)
  .debug_str     0x000000000008ebd6       0xf2 Application/App/lora_info.o
                                        0x9acd (size before relaxing)
  .debug_str     0x000000000008ecc8      0x1c2 Application/Core/adc.o

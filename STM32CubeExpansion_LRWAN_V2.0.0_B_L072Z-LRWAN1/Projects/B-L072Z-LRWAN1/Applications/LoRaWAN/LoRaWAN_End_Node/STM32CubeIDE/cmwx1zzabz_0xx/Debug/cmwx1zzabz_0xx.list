@@ -23,9 +23,9 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   ALLOC
   9 .ARM.attributes 00000028  00000000  00000000  0003019c  2**0
                   CONTENTS, READONLY
- 10 .debug_info   0005e648  00000000  00000000  000301c4  2**0
+ 10 .debug_info   0005e649  00000000  00000000  000301c4  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 11 .debug_abbrev 0000c691  00000000  00000000  0008e80c  2**0
+ 11 .debug_abbrev 0000c691  00000000  00000000  0008e80d  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
  12 .debug_aranges 00002140  00000000  00000000  0009aea0  2**3
                   CONTENTS, READONLY, DEBUGGING, OCTETS
@@ -6883,9 +6883,9 @@ static void OnMacProcessNotify(void)
  8003588:	b5f0      	push	{r4, r5, r6, r7, lr}
   APP_LOG(TS_OFF, VLEVEL_M, "APP_VERSION:        V%X.%X.%X\r\n",
  800358a:	2400      	movs	r4, #0
- 800358c:	2501      	movs	r5, #1
+ 800358c:	2701      	movs	r7, #1
   APP_LOG(TS_OFF, VLEVEL_M, "MW_LORAWAN_VERSION: V%X.%X.%X\r\n",
- 800358e:	2702      	movs	r7, #2
+ 800358e:	2502      	movs	r5, #2
 {
  8003590:	b085      	sub	sp, #20
   LED_Init(LED_BLUE);
@@ -6900,27 +6900,27 @@ static void OnMacProcessNotify(void)
   APP_LOG(TS_OFF, VLEVEL_M, "APP_VERSION:        V%X.%X.%X\r\n",
  80035a4:	0022      	movs	r2, r4
  80035a6:	0021      	movs	r1, r4
- 80035a8:	9500      	str	r5, [sp, #0]
- 80035aa:	4b36      	ldr	r3, [pc, #216]	; (8003684 <LoRaWAN_Init+0xfc>)
- 80035ac:	9402      	str	r4, [sp, #8]
- 80035ae:	9401      	str	r4, [sp, #4]
+ 80035a8:	4b36      	ldr	r3, [pc, #216]	; (8003684 <LoRaWAN_Init+0xfc>)
+ 80035aa:	9402      	str	r4, [sp, #8]
+ 80035ac:	9401      	str	r4, [sp, #4]
+ 80035ae:	9700      	str	r7, [sp, #0]
  80035b0:	2002      	movs	r0, #2
  80035b2:	f00c ffcd 	bl	8010550 <UTIL_ADV_TRACE_COND_FSend>
   APP_LOG(TS_OFF, VLEVEL_M, "MW_LORAWAN_VERSION: V%X.%X.%X\r\n",
  80035b6:	0022      	movs	r2, r4
  80035b8:	0021      	movs	r1, r4
- 80035ba:	9502      	str	r5, [sp, #8]
- 80035bc:	0038      	movs	r0, r7
- 80035be:	4b32      	ldr	r3, [pc, #200]	; (8003688 <LoRaWAN_Init+0x100>)
- 80035c0:	9701      	str	r7, [sp, #4]
- 80035c2:	9700      	str	r7, [sp, #0]
+ 80035ba:	9501      	str	r5, [sp, #4]
+ 80035bc:	9500      	str	r5, [sp, #0]
+ 80035be:	0028      	movs	r0, r5
+ 80035c0:	4b31      	ldr	r3, [pc, #196]	; (8003688 <LoRaWAN_Init+0x100>)
+ 80035c2:	9702      	str	r7, [sp, #8]
  80035c4:	f00c ffc4 	bl	8010550 <UTIL_ADV_TRACE_COND_FSend>
   APP_LOG(TS_OFF, VLEVEL_M, "MW_RADIO_VERSION:   V%X.%X.%X\r\n",
  80035c8:	0022      	movs	r2, r4
  80035ca:	0021      	movs	r1, r4
- 80035cc:	9502      	str	r5, [sp, #8]
- 80035ce:	0038      	movs	r0, r7
- 80035d0:	4b2e      	ldr	r3, [pc, #184]	; (800368c <LoRaWAN_Init+0x104>)
+ 80035cc:	0028      	movs	r0, r5
+ 80035ce:	4b2f      	ldr	r3, [pc, #188]	; (800368c <LoRaWAN_Init+0x104>)
+ 80035d0:	9702      	str	r7, [sp, #8]
  80035d2:	9401      	str	r4, [sp, #4]
  80035d4:	9400      	str	r4, [sp, #0]
  80035d6:	f00c ffbb 	bl	8010550 <UTIL_ADV_TRACE_COND_FSend>
@@ -6944,7 +6944,7 @@ static void OnMacProcessNotify(void)
   UTIL_TIMER_Create(&JoinLedTimer, 0xFFFFFFFFU, UTIL_TIMER_PERIODIC, OnJoinTimerLedEvent, NULL);
  80035fc:	2101      	movs	r1, #1
  80035fe:	4b29      	ldr	r3, [pc, #164]	; (80036a4 <LoRaWAN_Init+0x11c>)
- 8003600:	002a      	movs	r2, r5
+ 8003600:	003a      	movs	r2, r7
  8003602:	9400      	str	r4, [sp, #0]
  8003604:	4249      	negs	r1, r1
  8003606:	4828      	ldr	r0, [pc, #160]	; (80036a8 <LoRaWAN_Init+0x120>)
@@ -6966,13 +6966,13 @@ static void OnMacProcessNotify(void)
  8003626:	f00d fb51 	bl	8010ccc <UTIL_TIMER_SetPeriod>
   UTIL_SEQ_RegTask((1 << CFG_SEQ_Task_LmHandlerProcess), UTIL_SEQ_RFU, LmHandlerProcess);
  800362a:	0021      	movs	r1, r4
- 800362c:	0028      	movs	r0, r5
+ 800362c:	0038      	movs	r0, r7
  800362e:	4a1f      	ldr	r2, [pc, #124]	; (80036ac <LoRaWAN_Init+0x124>)
  8003630:	f00d f952 	bl	80108d8 <UTIL_SEQ_RegTask>
   UTIL_SEQ_RegTask((1 << CFG_SEQ_Task_LoRaSendOnTxTimerOrButtonEvent), UTIL_SEQ_RFU, SendTxData);
  8003634:	0021      	movs	r1, r4
  8003636:	4a1e      	ldr	r2, [pc, #120]	; (80036b0 <LoRaWAN_Init+0x128>)
- 8003638:	0038      	movs	r0, r7
+ 8003638:	0028      	movs	r0, r5
  800363a:	f00d f94d 	bl	80108d8 <UTIL_SEQ_RegTask>
   LoraInfo_Init();
  800363e:	f000 f83f 	bl	80036c0 <LoraInfo_Init>
