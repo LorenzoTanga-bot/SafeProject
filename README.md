@@ -13,14 +13,15 @@ In questa wiki è stata descritta step by step la procedura che consente l'uploa
 Eseguire il clone del branch **i-cube-lrwan-2.0.0**.
 Effettuare l'import del progetto in *STM32CubeIDE*
 
-`![Import projects](/screenshots/Import.png)`
+ ![Import](/screenshots/Import.png)`
 
 Selezionare il path corretto (..*/STM32CubeExpansion_LRWAN_V2.0.0_B_L072Z-LRWAN1\Projects\B-L072Z-LRWAN1\Applications\LoRaWAN\LoRaWAN_End_Node\STM32CubeIDE\cmwx1zzabz_0xx*).
 
-`![Path per l'import](/screenshots/Path.png)`
+ ![Path](/screenshots/Path.png)`
 
 Non appena l'import è stato completato, è possibile eseguire l'upload del firmware all'interno dell'end node.
-Attualmente il firmware presente è stato configurato in modalità ***ABP***.
+Attualmente il firmware presente è stato configurato in modalità ***ABP***.  
+
 Qualora si desideri usare la modalità ***OTAA***  sarà sufficiente spostarsi nel file *lora_app.h* (raggiungibile da progetto al path *../STM32CubeExpansion_LRWAN_V2.0.0_B_L072Z-LRWAN1\Projects\B-L072Z-LRWAN1\Applications\LoRaWAN\LoRaWAN_End_Node\LoRaWAN\App* )  e modificare la riga:
 
 ```console
@@ -31,7 +32,8 @@ sostituendo la stringa ***ACTIVATION_TYPE_ABP*** con **ACTIVATION_TYPE_OTAA**
 
 Se la modalità usata è ABP, ricordarsi di riattivare il dispositivo resettando i counters dopo averlo ricollegato:
 
- ![](/screenshots/ReactivateDevice.png)`
+ ![Riattivazione dispositivo](/screenshots/ReactivateDevice.png)`
+
 In modalità OTAA non è richiesta la riattivazione del dispositivo.
 
 A prescindere dalla modalità, copiare ed incollare il payload decoder all'interno del Device Profile dell'end node nell'interfaccia ChirpStack:
@@ -104,9 +106,12 @@ function sflt162f(rawSflt16)
 	return f_unscaled;
 	}
 ```
-![Codec - Payload Decoder](/screenshots/PayloadDecoder.png)
+
 
 Attualmente il payload decoder installato nel Device Profile è molto semplice (configurazione di minima per far comprendere il funzionamento, viene inviato il valore relativo al livello della batteria dell'end node).
+
+![Codec - Payload Decoder](/screenshots/PayloadDecoder.png)
+
 Il payload decoder condiviso in questa wiki andrà testato con il pacchetto inviato nella funzione **Send** del firmware in cui dovranno essere presenti anche i dati inviati mediante UART dal modulo Xethru.
 Sarà sufficiente il porting delle funzioni custom già implementate nella versione I-CUBE-LRWAN 1.3.1 in I-CUBE-LRWAN 2.0.0
 
