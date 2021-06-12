@@ -6,7 +6,7 @@
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; Copyright (c) 2018 STMicroelectronics.
+ * <h2><center>&copy; Copyright (c) 2018 STMicroelectronics.
   * All rights reserved.</center></h2>
   *
   * This software component is licensed by ST under Ultimate Liberty license
@@ -31,7 +31,7 @@
 typedef struct RespirationData
 {
 	bool valid;
-	char code;		   //Profile state, see StateCode value table below.
+	int code;		   //Profile state, see StateCode value table below.
 	int rpm;		   //respirations per minute (Breathing state only)
 	float distance;	   //Distance to where respiration is detected (Breathing state only)
 	float movement;	   //Relative movement of the respiration, in mm (Breathing state only)
@@ -111,22 +111,22 @@ const unsigned char _xtid_output_control_enable = 0x01;
 
 /* Private define ------------------------------------------------------------*/
 
-#define LORAWAN_MAX_BAT 254
+#define LORAWAN_MAX_BAT   254
 
 /*!
  * CAYENNE_LPP is myDevices Application server.
  */
 //#define CAYENNE_LPP
-#define LPP_DATATYPE_DIGITAL_INPUT 0x0
+#define LPP_DATATYPE_DIGITAL_INPUT  0x0
 #define LPP_DATATYPE_DIGITAL_OUTPUT 0x1
-#define LPP_DATATYPE_HUMIDITY 0x68
-#define LPP_DATATYPE_TEMPERATURE 0x67
-#define LPP_DATATYPE_BAROMETER 0x73
+#define LPP_DATATYPE_HUMIDITY       0x68
+#define LPP_DATATYPE_TEMPERATURE    0x67
+#define LPP_DATATYPE_BAROMETER      0x73
 #define LPP_APP_PORT 99
 /*!
  * Defines the application data transmission duty cycle. 5s, value in [ms].
  */
-#define APP_TX_DUTYCYCLE 10000
+#define APP_TX_DUTYCYCLE                            10000
 /*!
  * LoRaWAN Adaptive Data Rate
  * @note Please note that when ADR is enabled the end-device should be static
@@ -136,24 +136,24 @@ const unsigned char _xtid_output_control_enable = 0x01;
  * LoRaWAN Default data Rate Data Rate
  * @note Please note that LORAWAN_DEFAULT_DATA_RATE is used only when ADR is disabled
  */
-#define LORAWAN_DEFAULT_DATA_RATE DR_0 //DR_5
+#define LORAWAN_DEFAULT_DATA_RATE DR_0
 /*!
  * LoRaWAN application port
  * @note do not use 224. It is reserved for certification
  */
-#define LORAWAN_APP_PORT 2 //5
+#define LORAWAN_APP_PORT                            2
 /*!
  * LoRaWAN default endNode class port
  */
-#define LORAWAN_DEFAULT_CLASS CLASS_A
+#define LORAWAN_DEFAULT_CLASS                       CLASS_A
 /*!
  * LoRaWAN default confirm state
  */
-#define LORAWAN_DEFAULT_CONFIRM_MSG_STATE LORAWAN_UNCONFIRMED_MSG
+#define LORAWAN_DEFAULT_CONFIRM_MSG_STATE           LORAWAN_UNCONFIRMED_MSG
 /*!
  * User application data buffer size
  */
-#define LORAWAN_APP_DATA_BUFF_SIZE 64
+#define LORAWAN_APP_DATA_BUFF_SIZE                           64
 /*!
  * User application data
  */
@@ -163,25 +163,37 @@ static uint8_t AppDataBuff[LORAWAN_APP_DATA_BUFF_SIZE];
  * User application data structure
  */
 //static lora_AppData_t AppData={ AppDataBuff,  0 ,0 };
-lora_AppData_t AppData = {AppDataBuff, 0, 0};
+lora_AppData_t AppData = { AppDataBuff,  0, 0 };
 
 /* Private macro -------------------------------------------------------------*/
+//Define for debug
+#define DEBUG 0
+#define DEBUGUART 0
+#define DEBUGLRWAN 1
+
 #define RX_BUF_LENGTH 64
+#define RX_LEN 36
 #define TX_BUF_LENGTH 64
+
 
 UART_HandleTypeDef huartHandle1;
 __IO ITStatus UartReady = SET;
+bool initComunication = false;
 unsigned char rxBuf[RX_BUF_LENGTH];
 int rxBufferlen = 0;
-unsigned char rx[1];
+unsigned char rx[RX_LEN];
 bool beforeEscape = false;
 unsigned char txBuf[TX_BUF_LENGTH];
-bool debugFlag = false;
+
 int codeStateCount[5];
+int rpm = 0;
+float distance = 0.0;
+
 float distanceAvg = 0.0;
 int distanceAvgCount = 0;
 int rpmAvg = 0;
 int rpmAvgCount = 0;
+
 /* Private function prototypes -----------------------------------------------*/
 
 /* call back when LoRa endNode has received a frame*/
@@ -213,15 +225,16 @@ static void LoraMacProcessNotify(void);
 
 /* Private variables ---------------------------------------------------------*/
 /* load Main call backs structure*/
-static LoRaMainCallback_t LoRaMainCallbacks = {LORA_GetBatteryLevel,
-											   HW_GetTemperatureLevel,
-											   HW_GetUniqueId,
-											   HW_GetRandomSeed,
-											   LORA_RxData,
-											   LORA_HasJoined,
-											   LORA_ConfirmClass,
-											   LORA_TxNeeded,
-											   LoraMacProcessNotify};
+static LoRaMainCallback_t LoRaMainCallbacks = { LORA_GetBatteryLevel,
+                                                HW_GetTemperatureLevel,
+                                                HW_GetUniqueId,
+                                                HW_GetRandomSeed,
+                                                LORA_RxData,
+                                                LORA_HasJoined,
+                                                LORA_ConfirmClass,
+                                                LORA_TxNeeded,
+                                                LoraMacProcessNotify
+                                              };
 LoraFlagStatus LoraMacProcessRequest = LORA_RESET;
 LoraFlagStatus AppProcessRequest = LORA_RESET;
 /*!
@@ -241,9 +254,10 @@ static void OnTimerLedEvent(void *context);
 /* !
  *Initialises the Lora Parameters
  */
-static LoRaParam_t LoRaParamInit = {LORAWAN_ADR_STATE,
-									LORAWAN_DEFAULT_DATA_RATE,
-									LORAWAN_PUBLIC_NETWORK};
+static  LoRaParam_t LoRaParamInit = {LORAWAN_ADR_STATE,
+                                     LORAWAN_DEFAULT_DATA_RATE,
+                                     LORAWAN_PUBLIC_NETWORK
+                                    };
 
 /* Private functions ---------------------------------------------------------*/
 void USART1_IRQHandler(void)
@@ -251,46 +265,155 @@ void USART1_IRQHandler(void)
 	HAL_UART_IRQHandler(&huartHandle1);
 }
 
+void initComunicationLogic()
+{
+	if (rxBufferlen == 0 && rx[0] == _xt_start)
+	{
+		memset(rxBuf, 0, RX_BUF_LENGTH);
+		rxBuf[rxBufferlen++] = _xt_start;
+	}
+	else
+	{
+		if (beforeEscape)
+		{
+			rxBuf[rxBufferlen++] = rx[0];
+			beforeEscape = false;
+		}
+		else if (rx[0] == _xt_escape)
+			beforeEscape = true;
+		else
+			rxBuf[rxBufferlen++] = rx[0];
+	}
+
+	if (rx[0] == _xt_stop && !beforeEscape)
+	{
+		UartReady = SET;
+#if DEBUG || DEBUGUART
+			PRINTF("Rx: ");
+			for (int i = 0; i < rxBufferlen; i++)
+				PRINTF("%2x ", rxBuf[i]);
+			PRINTF("\r\n");
+#endif
+	}
+	else
+		HAL_UART_Receive_IT(&huartHandle1, (uint8_t *)rx, 1);
+}
+
+void analyzeResporationData(int _code, int _rpm, float _distance)
+{
+
+	PRINTF("Respiration code -> %2x\r\n", _code);
+
+
+	if(_code == 0)
+	{
+		rpm = _rpm;
+		distance = _distance;
+
+//		if (distanceAvgCount > 1 && distance != 0.0)
+//			distanceAvg = (distanceAvgCount * distanceAvg + distance) / (distanceAvgCount + 1);
+//		if (rpmAvgCount > 1 && rpm != 0)
+//			rpmAvg = (rpmAvgCount * rpmAvg + rpm) / (rpmAvgCount + 1);
+//
+//		if (distanceAvgCount == 0 && distance != 0.0)
+//			distanceAvg = distance;
+//		if (rpmAvgCount == 0 && rpm != 0)
+//			rpmAvg = rpm;
+//
+//		if (distance != 0.0)
+//			distanceAvgCount++;
+//		if (rpm != 0)
+//			rpmAvgCount++;
+//		PRINTF("Rpm AVG-> %f\r\n", rpmAvg);
+//		PRINTF("Distance AVG-> %f\r\n", distanceAvg);
+	}
+
+	if(_code < 4)
+		codeStateCount[_code]++;
+	else
+		codeStateCount[4]++;
+
+}
+
+bool crcCalculator(unsigned char *buffer, int lenght)
+{
+	char crc = 0;
+	for (int i = 0; i < lenght - 2; i++)
+		crc ^= buffer[i];
+
+	if (crc == buffer[lenght - 2])
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+
 /* This callback is called by the HAL_UART_IRQHandler when the given number of bytes are received */
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
 	if (USART1 == huartHandle1.Instance)
 	{
-		if (rxBufferlen == 0 && rx[0] == _xt_start)
+		if(initComunication)
 		{
-			memset(rxBuf, 0, RX_BUF_LENGTH);
-			rxBuf[rxBufferlen++] = _xt_start;
+			initComunicationLogic();
+			return;
 		}
-		else
+		if(beforeEscape)
 		{
-			if (beforeEscape)
+#if DEBUG || DEBUGUART
+			PRINTF("%2x ", rx[0]);
+#endif
+			if(rx[0] == _xt_stop)
 			{
-				rxBuf[rxBufferlen++] = rx[0];
 				beforeEscape = false;
-			}
-			else if (rx[0] == _xt_escape)
-				beforeEscape = true;
-			else
-				rxBuf[rxBufferlen++] = rx[0];
-		}
+				memset(rx, 0, RX_LEN);
+				UartReady = SET;
+#if DEBUG || DEBUGUART
+			PRINTF("\r\n");
+#endif
+			} else {
+				HAL_UART_Receive_IT(&huartHandle1, (uint8_t *)rx, 1);
 
-		if (rx[0] == _xt_stop && !beforeEscape)
+			}
+			return;
+		}
+#if DEBUG || DEBUGUART
+			PRINTF("Rx: ");
+			for (int i = 0; i < RX_LEN; i++)
+				PRINTF("%2x ", rx[i]);
+			PRINTF("\r\n");
+#endif
+
+		if(rx[0] == _xt_start && rx[RX_LEN-1] == _xt_stop && crcCalculator(rx, RX_LEN))
 		{
-
-			if (debugFlag)
+			int code = 4;
+			int _rpm = 0;
+			float _distance = 0.0;
+			memcpy(&code, &rx[10], 4);
+			if (code == 0)
 			{
-				PRINTF("Rx: ");
-				for (int i = 0; i < rxBufferlen; i++)
-					PRINTF("%2x ", rxBuf[i]);
-				PRINTF("\r\n");
+				memcpy(&rpm, &rx[14], 4);
+				memcpy(&distance, &rx[18], 4);
+
+				PRINTF("Rpm -> %d\r\n", rpm);
+				PRINTF("Distance -> %f\r\n", distance);
 			}
 
-			UartReady = SET;
-		}
-		else
+			analyzeResporationData(code, _rpm, _distance);
+			memset(rx, 0, RX_LEN);
+			HAL_UART_Receive_IT(&huartHandle1, (uint8_t *)rx, RX_LEN);
+			__HAL_UART_FLUSH_DRREGISTER(&huartHandle1);
+		} else {
+			beforeEscape = true;
+			memset(rx, 0, RX_LEN);
 			HAL_UART_Receive_IT(&huartHandle1, (uint8_t *)rx, 1);
+		}
 
-		__HAL_UART_FLUSH_DRREGISTER(&huartHandle1);
+
 	}
 }
 
@@ -340,13 +463,12 @@ void sendCommand(unsigned char *cmd, int len)
 	tx[len + 1] = crc;
 	tx[len + 2] = _xt_stop;
 
-	if (debugFlag)
-	{
+#if DEBUG || DEBUGUART
 		PRINTF("Tx: ");
 		for (int i = 0; i < len + 3; i++)
 			PRINTF("%2x ", tx[i]);
 		PRINTF("\r\n");
-	}
+#endif
 
 	HAL_UART_Transmit(&huartHandle1, (uint8_t *)tx, len + 3, HAL_MAX_DELAY);
 }
@@ -459,6 +581,7 @@ void executeApp()
 
 void x4m200Init()
 {
+	initComunication = true;
 	stopModule();
 	PRINTF("Stop Module\r\n");
 	resetModule();
@@ -467,85 +590,13 @@ void x4m200Init()
 	PRINTF("Load respiration app\r\n");
 	configureNoiseMap();
 	PRINTF("Configure noise map\r\n");
-	setSensity(5);
+	setSensity(9);
 	PRINTF("set sensity\r\n");
 	setDetectionZone(0.40, 2.00);
 	PRINTF("set detection zone\r\n");
 	executeApp();
 	PRINTF("execute app\r\n");
-}
-
-RespirationData getRespirationData()
-{
-	RespirationData data;
-	data.code = 6;
-	data.distance = 0.0;
-	data.movement = 0.0;
-	data.rpm = 0;
-	data.signalQuality = 0;
-	int receiveLenght = receiveData(36);
-
-	if (receiveLenght < 0 || rxBuf[1] != _xts_spr_appdata)
-	{
-		data.valid = false;
-		return data;
-	}
-	memcpy(&data.code, &rxBuf[10], 4);
-	if (data.code == 0)
-	{
-		memcpy(&data.rpm, &rxBuf[14], 4);
-		memcpy(&data.distance, &rxBuf[18], 4);
-		memcpy(&data.movement, &rxBuf[22], 4);
-		memcpy(&data.signalQuality, &rxBuf[26], 4);
-	}
-
-	data.valid = true;
-	return data;
-}
-
-void analyzeResporationData(RespirationData *data)
-{
-
-	switch (data->code)
-	{
-	case 0:
-		if (distanceAvgCount > 1 && data->distance != 0.0)
-			distanceAvg = (distanceAvgCount * distanceAvg + data->distance) / (distanceAvgCount + 1);
-		if (rpmAvgCount > 1 && data->rpm != 0)
-			rpmAvg = (rpmAvgCount * rpmAvg + data->rpm) / (rpmAvgCount + 1);
-
-		if (distanceAvgCount == 0 && data->distance != 0.0)
-			distanceAvg = data->distance;
-		if (rpmAvgCount == 0 && data->rpm != 0)
-			rpmAvg = data->rpm;
-
-		if (data->distance != 0.0)
-			distanceAvgCount++;
-		if (data->rpm != 0)
-			rpmAvgCount++;
-
-		codeStateCount[0]++;
-		PRINTF("code count: %d \r\n", codeStateCount[0]);
-		if (codeStateCount[0] % 10 == 0)
-			PRINTF("test");
-		break;
-	case 1:
-		codeStateCount[1]++;
-		PRINTF("code count: %d \r\n", codeStateCount[1]);
-		break;
-	case 2:
-		codeStateCount[2]++;
-		PRINTF("code count: %d \r\n", codeStateCount[2]);
-		break;
-	case 3:
-		codeStateCount[3]++;
-		PRINTF("code count: %d \r\n", codeStateCount[3]);
-		break;
-	default:
-		codeStateCount[4]++;
-		PRINTF("code count: %d \r\n", codeStateCount[4]);
-		break;
-	}
+	initComunication = false;
 }
 
 /**
@@ -568,7 +619,6 @@ int main(void)
 	HW_Init();
 
 	/* USER CODE BEGIN 1 */
-	RespirationData data;
 
 	gpioInit();
 
@@ -590,14 +640,16 @@ int main(void)
 
 	LoraStartTx(TX_ON_TIMER);
 
+
+
 	while (1)
 	{
-		data = getRespirationData();
-		if (data.valid)
+		if (UartReady == SET)
 		{
-			PRINTF("Respiration code -> %2x\r\n", data.code);
-			analyzeResporationData(&data);
+			UartReady = RESET;
+			HAL_UART_Receive_IT(&huartHandle1, (uint8_t *)rx, RX_LEN);
 		}
+
 		if (AppProcessRequest == LORA_SET)
 		{
 			/*reset notification flag*/
@@ -611,194 +663,205 @@ int main(void)
 			LoraMacProcessRequest = LORA_RESET;
 			LoRaMacProcess();
 		}
-		/*If a flag is set at this point, mcu must not enter low power and must loop*/
-		DISABLE_IRQ();
-
-		/* if an interrupt has occurred after DISABLE_IRQ, it is kept pending
-     * and cortex will not enter low power anyway  */
-		if ((LoraMacProcessRequest != LORA_SET) && (AppProcessRequest != LORA_SET))
-		{
-#ifndef LOW_POWER_DISABLE
-			LPM_EnterLowPower();
-#endif
-		}
-
-		ENABLE_IRQ();
-
-		/* USER CODE BEGIN 2 */
-		/* USER CODE END 2 */
 	}
 }
 
+
+
 void LoraMacProcessNotify(void)
 {
-	LoraMacProcessRequest = LORA_SET;
+  LoraMacProcessRequest = LORA_SET;
 }
+
 
 static void LORA_HasJoined(void)
 {
-#if (OVER_THE_AIR_ACTIVATION != 0)
-	PRINTF("JOINED\n\r");
+#if( OVER_THE_AIR_ACTIVATION != 0 )
+  PRINTF("JOINED\n\r");
 #endif
-	LORA_RequestClass(LORAWAN_DEFAULT_CLASS);
+
+  LORA_RequestClass(LORAWAN_DEFAULT_CLASS);
+
 }
 
 static void Send(void *context)
 {
-	/* USER CODE BEGIN 3 */
+  /* USER CODE BEGIN 3 */
 
-	if (LORA_JoinStatus() != LORA_SET)
-	{
-		/*Not joined, try again later*/
-		LORA_Join();
-		return;
-	}
+  if (LORA_JoinStatus() != LORA_SET)
+  {
+    /*Not joined, try again later*/
+    LORA_Join();
+    return;
+  }
+
+  TVL1(PRINTF("SEND REQUEST\n\r");)
+
 
 #ifdef USE_B_L072Z_LRWAN1
-	TimerInit(&TxLedTimer, OnTimerLedEvent);
+  TimerInit(&TxLedTimer, OnTimerLedEvent);
 
-	TimerSetValue(&TxLedTimer, 200);
+  TimerSetValue(&TxLedTimer, 200);
 
-	LED_On(LED_RED1);
+  LED_On(LED_RED1);
 
-	TimerStart(&TxLedTimer);
+  TimerStart(&TxLedTimer);
 #endif
-	AppData.Port = LORAWAN_APP_PORT;
 
-	memcpy(&AppData.Buff, &codeStateCount[0], 4);
-	memcpy(&AppData.Buff + 4, &codeStateCount[1], 4);
-	memcpy(&AppData.Buff + 8, &codeStateCount[2], 4);
-	memcpy(&AppData.Buff + 12, &distanceAvg, 4);
-	memcpy(&AppData.Buff + 16, &rpmAvg, 4);
+  AppData.Port = LORAWAN_APP_PORT;
 
-	AppData.BuffSize = 20;
+  memcpy(&AppData.Buff, &codeStateCount[0], 4);
+  memcpy(&AppData.Buff + 4, &codeStateCount[1], 4);
+  memcpy(&AppData.Buff + 8, &codeStateCount[2], 4);
+  memcpy(&AppData.Buff + 12, &distance, 4);
+  memcpy(&AppData.Buff + 16, &rpm, 4);
 
-	LORA_send(&AppData, LORAWAN_DEFAULT_CONFIRM_MSG_STATE);
+  AppData.BuffSize = 20;
 
-	PRINTF("Packet sent!\r\n");
+//#if DEBUG || DEBUGLRWAN
+  	PRINTF("code 0: %d \r\n", codeStateCount[0]);
+  	PRINTF("code 1: %d \r\n", codeStateCount[1]);
+  	PRINTF("code 2: %d \r\n", codeStateCount[2]);
+  	PRINTF("distance: %d \r\n", distance);
+  	PRINTF("rpm: %d \r\n", rpm);
+	PRINTF("tx_lr: ");
+	for (int i = 0; i < AppData.BuffSize; i++)
+		PRINTF("%2x ", AppData.Buff[i]);
+	PRINTF("\r\n");
+//#endif
 
-	/* USER CODE END 3 */
+  LORA_send(&AppData, LORAWAN_DEFAULT_CONFIRM_MSG_STATE);
+
+  /* USER CODE END 3 */
 }
+
 
 static void LORA_RxData(lora_AppData_t *AppData)
 {
-	/* USER CODE BEGIN 4 */
-	PRINTF("PACKET RECEIVED ON PORT %d\n\r", AppData->Port);
+  /* USER CODE BEGIN 4 */
+  PRINTF("PACKET RECEIVED ON PORT %d\n\r", AppData->Port);
 
-	switch (AppData->Port)
-	{
-	case 3:
-		/*this port switches the class*/
-		if (AppData->BuffSize == 1)
-		{
-			switch (AppData->Buff[0])
-			{
-			case 0:
-			{
-				LORA_RequestClass(CLASS_A);
-				break;
-			}
-			case 1:
-			{
-				LORA_RequestClass(CLASS_B);
-				break;
-			}
-			case 2:
-			{
-				LORA_RequestClass(CLASS_C);
-				break;
-			}
-			default:
-				break;
-			}
-		}
-		break;
-	case LORAWAN_APP_PORT:
-		if (AppData->BuffSize == 1)
-		{
-			AppLedStateOn = AppData->Buff[0] & 0x01;
-			if (AppLedStateOn == RESET)
-			{
-				PRINTF("LED OFF\n\r");
-				LED_Off(LED_BLUE);
-			}
-			else
-			{
-				PRINTF("LED ON\n\r");
-				LED_On(LED_BLUE);
-			}
-		}
-		break;
-	case LPP_APP_PORT:
-	{
-		AppLedStateOn = (AppData->Buff[2] == 100) ? 0x01 : 0x00;
-		if (AppLedStateOn == RESET)
-		{
-			PRINTF("LED OFF\n\r");
-			LED_Off(LED_BLUE);
-		}
-		else
-		{
-			PRINTF("LED ON\n\r");
-			LED_On(LED_BLUE);
-		}
-		break;
-	}
-	default:
-		break;
-	}
-	/* USER CODE END 4 */
+  switch (AppData->Port)
+  {
+    case 3:
+      /*this port switches the class*/
+      if (AppData->BuffSize == 1)
+      {
+        switch (AppData->Buff[0])
+        {
+          case 0:
+          {
+            LORA_RequestClass(CLASS_A);
+            break;
+          }
+          case 1:
+          {
+            LORA_RequestClass(CLASS_B);
+            break;
+          }
+          case 2:
+          {
+            LORA_RequestClass(CLASS_C);
+            break;
+          }
+          default:
+            break;
+        }
+      }
+      break;
+    case LORAWAN_APP_PORT:
+      if (AppData->BuffSize == 1)
+      {
+        AppLedStateOn = AppData->Buff[0] & 0x01;
+        if (AppLedStateOn == RESET)
+        {
+          PRINTF("LED OFF\n\r");
+          LED_Off(LED_BLUE) ;
+        }
+        else
+        {
+          PRINTF("LED ON\n\r");
+          LED_On(LED_BLUE) ;
+        }
+      }
+      break;
+    case LPP_APP_PORT:
+    {
+      AppLedStateOn = (AppData->Buff[2] == 100) ?  0x01 : 0x00;
+      if (AppLedStateOn == RESET)
+      {
+        PRINTF("LED OFF\n\r");
+        LED_Off(LED_BLUE) ;
+
+      }
+      else
+      {
+        PRINTF("LED ON\n\r");
+        LED_On(LED_BLUE) ;
+      }
+      break;
+    }
+    default:
+    {
+      uint16_t payload = ((uint16_t) AppData->Buff[1] << 8) | AppData->Buff[0];
+
+      PRINTF("Buffer size: %d\r\n", AppData->BuffSize);
+      PRINTF("Test value: %d\r\n", payload);
+    }
+    break;
+  }
+  /* USER CODE END 4 */
 }
 
 static void OnTxTimerEvent(void *context)
 {
-	/*Wait for next tx slot*/
-	TimerStart(&TxTimer);
+  /*Wait for next tx slot*/
+  TimerStart(&TxTimer);
 
-	AppProcessRequest = LORA_SET;
+  AppProcessRequest = LORA_SET;
 }
 
 static void LoraStartTx(TxEventType_t EventType)
 {
-	if (EventType == TX_ON_TIMER)
-	{
-		/* send everytime timer elapses */
-		TimerInit(&TxTimer, OnTxTimerEvent);
-		TimerSetValue(&TxTimer, APP_TX_DUTYCYCLE);
-		OnTxTimerEvent(NULL);
-	}
-	else
-	{
-		/* send everytime button is pushed */
-		GPIO_InitTypeDef initStruct = {0};
+  if (EventType == TX_ON_TIMER)
+  {
+    /* send everytime timer elapses */
+    TimerInit(&TxTimer, OnTxTimerEvent);
+    TimerSetValue(&TxTimer,  APP_TX_DUTYCYCLE);
+    OnTxTimerEvent(NULL);
+  }
+  else
+  {
+    /* send everytime button is pushed */
+    GPIO_InitTypeDef initStruct = {0};
 
-		initStruct.Mode = GPIO_MODE_IT_RISING;
-		initStruct.Pull = GPIO_PULLUP;
-		initStruct.Speed = GPIO_SPEED_HIGH;
+    initStruct.Mode = GPIO_MODE_IT_RISING;
+    initStruct.Pull = GPIO_PULLUP;
+    initStruct.Speed = GPIO_SPEED_HIGH;
 
-		HW_GPIO_Init(USER_BUTTON_GPIO_PORT, USER_BUTTON_PIN, &initStruct);
-		HW_GPIO_SetIrq(USER_BUTTON_GPIO_PORT, USER_BUTTON_PIN, 0, Send);
-	}
+    HW_GPIO_Init(USER_BUTTON_GPIO_PORT, USER_BUTTON_PIN, &initStruct);
+    HW_GPIO_SetIrq(USER_BUTTON_GPIO_PORT, USER_BUTTON_PIN, 0, Send);
+  }
 }
 
 static void LORA_ConfirmClass(DeviceClass_t Class)
 {
-	PRINTF("switch to class %c done\n\r", "ABC"[Class]);
+  PRINTF("switch to class %c done\n\r", "ABC"[Class]);
 
-	/*Optionnal*/
-	/*informs the server that switch has occurred ASAP*/
-	AppData.BuffSize = 0;
-	AppData.Port = LORAWAN_APP_PORT;
+  /*Optionnal*/
+  /*informs the server that switch has occurred ASAP*/
+  AppData.BuffSize = 0;
+  AppData.Port = LORAWAN_APP_PORT;
 
-	LORA_send(&AppData, LORAWAN_UNCONFIRMED_MSG);
+  LORA_send(&AppData, LORAWAN_UNCONFIRMED_MSG);
 }
 
 static void LORA_TxNeeded(void)
 {
-	AppData.BuffSize = 0;
-	AppData.Port = LORAWAN_APP_PORT;
+  AppData.BuffSize = 0;
+  AppData.Port = LORAWAN_APP_PORT;
 
-	LORA_send(&AppData, LORAWAN_UNCONFIRMED_MSG);
+  LORA_send(&AppData, LORAWAN_UNCONFIRMED_MSG);
 }
 
 /**
@@ -808,32 +871,33 @@ static void LORA_TxNeeded(void)
   */
 uint8_t LORA_GetBatteryLevel(void)
 {
-	uint16_t batteryLevelmV;
-	uint8_t batteryLevel = 0;
+  uint16_t batteryLevelmV;
+  uint8_t batteryLevel = 0;
 
-	batteryLevelmV = HW_GetBatteryLevel();
+  batteryLevelmV = HW_GetBatteryLevel();
 
-	/* Convert batterey level from mV to linea scale: 1 (very low) to 254 (fully charged) */
-	if (batteryLevelmV > VDD_BAT)
-	{
-		batteryLevel = LORAWAN_MAX_BAT;
-	}
-	else if (batteryLevelmV < VDD_MIN)
-	{
-		batteryLevel = 0;
-	}
-	else
-	{
-		batteryLevel = (((uint32_t)(batteryLevelmV - VDD_MIN) * LORAWAN_MAX_BAT) / (VDD_BAT - VDD_MIN));
-	}
 
-	return batteryLevel;
+  /* Convert batterey level from mV to linea scale: 1 (very low) to 254 (fully charged) */
+  if (batteryLevelmV > VDD_BAT)
+  {
+    batteryLevel = LORAWAN_MAX_BAT;
+  }
+  else if (batteryLevelmV < VDD_MIN)
+  {
+    batteryLevel = 0;
+  }
+  else
+  {
+    batteryLevel = (((uint32_t)(batteryLevelmV - VDD_MIN) * LORAWAN_MAX_BAT) / (VDD_BAT - VDD_MIN));
+  }
+
+  return batteryLevel;
 }
 
 #ifdef USE_B_L072Z_LRWAN1
 static void OnTimerLedEvent(void *context)
 {
-	LED_Off(LED_RED1);
+  LED_Off(LED_RED1) ;
 }
 #endif
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

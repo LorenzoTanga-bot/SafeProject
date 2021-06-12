@@ -82,7 +82,9 @@ extern "C" {
  * When set to 1 the application uses the Over-the-Air activation procedure
  * When set to 0 the application uses the Personalization activation procedure
  */
-#define OVER_THE_AIR_ACTIVATION                            1
+
+
+#define OVER_THE_AIR_ACTIVATION                            0
 
 /*!
  * When using ABP activation the MAC layer must know in advance to which server
@@ -182,6 +184,7 @@ extern "C" {
  * Application session key
  */
 #define LORAWAN_APP_S_KEY                                  { 0x2B, 0x7E, 0x15, 0x16, 0x28, 0xAE, 0xD2, 0xA6, 0xAB, 0xF7, 0x15, 0x88, 0x09, 0xCF, 0x4F, 0x3C }
+
 
 #ifdef __cplusplus
 }
