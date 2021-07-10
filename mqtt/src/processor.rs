@@ -1,24 +1,31 @@
-fn processor(client_subscribe : mqtt::Client, client_publisher : mqtt::Client, rx : mpsc::Receiver<Option<Message>>){
+const QOS: i32 = 1;
+
+fn analys(content: &str) -> JsonValue{
+    let json_content: JsonValue = serde_json::from_str(&content).unwrap();
+    return json!({
+    "type": "presence_uwb",
+    "m": [
+        {
+            "k": "safe_status",
+            "v": json_content["object"]["sensor"]["Profile"].to_string(),
+        },
+        {
+            "k": "presence",
+            "v": json_content["object"]["sensor"]["StateCode"],
+        }
+    ]});
+}
+
+fn processor(client_subscribe : mqtt::Client, client_publisher : mqtt::Client, rx : mpsc::Receiver<Option<Message>>,  topik: &str){
     println!("Processing requests...");
     for msg in rx.iter() {
         if let Some(msg) = msg {
             let content = msg
                 .to_string()
                 .replace("application/1/device/3036363283397307/event/up: ", "");
-            let json_content: JsonValue = serde_json::from_str(&content).unwrap();
-            let new_content: JsonValue = json!({
-            "type": "presence_uwb",
-            "m": [
-                {
-                    "k": "safe_status",
-                    "v": json_content["object"]["sensor"]["Profile"].to_string(),
-                },
-                {
-                    "k": "presence",
-                    "v": json_content["object"]["sensor"]["StateCode"],
-                }
-            ]});
-            let new_msg = mqtt::Message::new(DFLT_TOPICS[1], new_content.to_string().clone(), QOS);
+            
+            let new_content: JsonValue analys(content)
+            let new_msg = mqtt::Message::new(topik, new_content.to_string().clone(), QOS);
             let tok = client_publisher.publish(new_msg);
 
             if let Err(e) = tok {
