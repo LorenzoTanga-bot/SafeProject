@@ -40,14 +40,11 @@ class MyMQTTClass(mqtt.Client) :
     def on_connect(self, mqttc, obj, flags, rc) :
         logging.info(str(datetime.now().strftime("%Y-%m-%d %H:%M:%S")) +
                      " Connected to local MQTT broker : " + str(rc))
-        self.subscribe(params["mqtt_topic"])
+        self.subscribe(params["mqtt_topic_sub"])
 
     def on_message(self, mqttc, obj, msg) :
-        print('ho ricevuto in messaggio')
-        # if (wampSession is not None) and (wampConnectionStatus == wampConnectionEnum["CONNECTED"]) :
-        #     logging.info(str(datetime.now().strftime("%Y-%m-%d %H:%M:%S")) +
-        #                  " Lorawan message received on MQTT topic: "+params["mqtt_topic"])
-        # Get Lorawan JSON
+        print('ho ricevuto un messaggio')
+
         lorawanJson = json.loads(msg.payload)
         # If 'object' attribute is not empty
         print(lorawanJson)
@@ -74,34 +71,8 @@ class MyMQTTClass(mqtt.Client) :
         
         print(snapshot)
         
-        self.publish('/fratek', snapshot)
+        self.publish(params["mqtt_topic_sub"], snapshot)
             
-            # Iterate responders
-            # for responder in lorawanJson['object']['sensors'] :
-            #     destinationNodeId = responder['destinationNode']
-            #     distanceFromInitiator = responder['distance']
-            #     mqttText = TextWAMP()
-            #     mqttText.setM("distance", distanceFromInitiator)
-            #     snapshot = json.dumps(mqttText.getSnapshot(sourceNodeId, type))
-            #     print(snapshot)
-            #     self.publish('/fratek', snapshot)
-            #     # self.publish(''+ params["device_id"]+ '.0000', snapshot)
-            #     logging.info(str(datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + " SP message published to MQTT topic: "+params["wamp_topic"])
-            #     logging.info(str(datetime.now().strftime("%Y-%m-%d %H:%M:%S")) +
-            #                      " Source node: "+str(sourceNodeId) +
-            #                      " - Destination node: " + str(destinationNodeId) +
-            #                      " - Distance: "+str(distanceFromInitiator))
-                    # wampText = TextWAMP()
-                    # wampText.setM("distance", distanceFromInitiator)
-                    # snapshot = json.dumps(wampText.getSnapshot(params["device_id"], sourceNodeId, destinationNodeId))
-                    # getWampSession().publish(params["wamp_topic"], snapshot)
-                    # logging.info(str(datetime.now().strftime("%Y-%m-%d %H:%M:%S")) +
-                    #              " SP message published to WAMP topic: "+params["wamp_topic"])
-                    # logging.info(str(datetime.now().strftime("%Y-%m-%d %H:%M:%S")) +
-                    #              " Source node: "+str(sourceNodeId) +
-                    #              " - Destination node: " + str(destinationNodeId) +
-                    #              " - Distance: "+str(distanceFromInitiator))
-
     def on_publish(self, mqttc, obj, mid) :
         logging.info(str(datetime.now().strftime("%Y-%m-%d %H:%M:%S")) +
                      " mid: " + str(mid))

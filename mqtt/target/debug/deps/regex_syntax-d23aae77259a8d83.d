@@ -1,0 +1,10 @@
+/Users/lorenzotanganelli/Documents/Development/SafeProject/mqtt/target/debug/deps/regex_syntax-d23aae77259a8d83.rmeta: /Users/lorenzotanganelli/.cargo/registry/src/github.com-1ecc6299db9ec823/regex-syntax-0.3.9/src/lib.rs /Users/lorenzotanganelli/.cargo/registry/src/github.com-1ecc6299db9ec823/regex-syntax-0.3.9/src/literals.rs /Users/lorenzotanganelli/.cargo/registry/src/github.com-1ecc6299db9ec823/regex-syntax-0.3.9/src/parser.rs /Users/lorenzotanganelli/.cargo/registry/src/github.com-1ecc6299db9ec823/regex-syntax-0.3.9/src/unicode.rs
+
+/Users/lorenzotanganelli/Documents/Development/SafeProject/mqtt/target/debug/deps/libregex_syntax-d23aae77259a8d83.rlib: /Users/lorenzotanganelli/.cargo/registry/src/github.com-1ecc6299db9ec823/regex-syntax-0.3.9/src/lib.rs /Users/lorenzotanganelli/.cargo/registry/src/github.com-1ecc6299db9ec823/regex-syntax-0.3.9/src/literals.rs /Users/lorenzotanganelli/.cargo/registry/src/github.com-1ecc6299db9ec823/regex-syntax-0.3.9/src/parser.rs /Users/lorenzotanganelli/.cargo/registry/src/github.com-1ecc6299db9ec823/regex-syntax-0.3.9/src/unicode.rs
+
+/Users/lorenzotanganelli/Documents/Development/SafeProject/mqtt/target/debug/deps/regex_syntax-d23aae77259a8d83.d: /Users/lorenzotanganelli/.cargo/registry/src/github.com-1ecc6299db9ec823/regex-syntax-0.3.9/src/lib.rs /Users/lorenzotanganelli/.cargo/registry/src/github.com-1ecc6299db9ec823/regex-syntax-0.3.9/src/literals.rs /Users/lorenzotanganelli/.cargo/registry/src/github.com-1ecc6299db9ec823/regex-syntax-0.3.9/src/parser.rs /Users/lorenzotanganelli/.cargo/registry/src/github.com-1ecc6299db9ec823/regex-syntax-0.3.9/src/unicode.rs
+
+/Users/lorenzotanganelli/.cargo/registry/src/github.com-1ecc6299db9ec823/regex-syntax-0.3.9/src/lib.rs:
+/Users/lorenzotanganelli/.cargo/registry/src/github.com-1ecc6299db9ec823/regex-syntax-0.3.9/src/literals.rs:
+/Users/lorenzotanganelli/.cargo/registry/src/github.com-1ecc6299db9ec823/regex-syntax-0.3.9/src/parser.rs:
+/Users/lorenzotanganelli/.cargo/registry/src/github.com-1ecc6299db9ec823/regex-syntax-0.3.9/src/unicode.rs:
