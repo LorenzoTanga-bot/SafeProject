@@ -1,4 +1,6 @@
+use chrono::prelude::*;
 use std::{process, thread, time::Duration};
+use uuid::Uuid;
 
 extern crate paho_mqtt as mqtt;
 extern crate serde_json;
@@ -10,72 +12,9 @@ const DFLT_TOPICS: &[&str] = &[
     "application/1/device/+/event/up",
     "safe.it/jz/device/snapshot/0000/edv/",
 ];
-
+// Define the qos.
 const QOS: i32 = 1;
-
-fn create_client_subscribe(broker: &str, client: &str) -> mqtt::Client{
-    let create_opts = mqtt::CreateOptionsBuilder::new()
-        .server_uri(broker.to_string())
-        .client_id(client.to_string())
-        .finalize();
-
-    let client = mqtt::Client::new(create_opts).unwrap_or_else(|err| {
-        println!("Error creating the client: {:?}", err);
-        process::exit(1);
-    });
-
-    return client;
-}
-
-fn create_connection_subscribe(client: mqtt::Client, topik: &str){
-    let lwt = mqtt::MessageBuilder::new()
-        .topic("test")
-        .payload("Consumer lost connection")
-        .finalize();
-    let conn_opts = mqtt::ConnectOptionsBuilder::new()
-        .keep_alive_interval(Duration::from_secs(20))
-        .clean_session(false)
-        .will_message(lwt)
-        .finalize();
-    
-    if let Err(e) = client.connect(conn_opts) {
-        println!("Unable to connect:\n\t{:?}", e);
-        process::exit(1);
-    }
-
-    if let Err(e) = client.subscribe(topik, QOS) {
-        println!("Error subscribes topics: {:?}", e);
-        process::exit(1);
-    }
-}
-
-fn create_client_publisher(broker: &str, client: &str) -> mqtt::Client{
-    let create_opts = mqtt::CreateOptionsBuilder::new()
-        .server_uri(broker.to_string())
-        .client_id(client.to_string())
-        .finalize();
-
-    let client = mqtt::Client::new(create_opts).unwrap_or_else(|err| {
-        println!("Error creating the client: {:?}", err);
-        process::exit(1);
-    });
-
-    return client;
-}
-
-fn create_connection_publisher(client: mqtt::Client){
-    let conn_opts = mqtt::ConnectOptionsBuilder::new()
-        .keep_alive_interval(Duration::from_secs(20))
-        .clean_session(true)
-        .finalize();
-    
-    
-    if let Err(e) = client.connect(conn_opts) {
-        println!("Unable to connect:\n\t{:?}", e);
-        process::exit(1);
-    }
-}
-
+// Reconnect to the broker when connection is lost.
 fn try_reconnect(cli: &mqtt::Client) -> bool {
     println!("Connection lost. Waiting to retry connection");
     for _ in 0..12 {
@@ -89,72 +28,154 @@ fn try_reconnect(cli: &mqtt::Client) -> bool {
     false
 }
 
-fn analys(content: &str) -> JsonValue{
-    let json_content: JsonValue = serde_json::from_str(&content).unwrap();
-    return json!({
-    "type": "presence_uwb",
-    "m": [
-        {
-            "k": "safe_status",
-            "v": json_content["object"]["sensor"]["Profile"].to_string(),
-        },
-        {
-            "k": "presence",
-            "v": json_content["object"]["sensor"]["StateCode"],
-        }
-    ]});
-}
-
-fn disconnect(client_subscribe : mqtt::Client, client_publisher : mqtt::Client){
-    if client_subscribe.is_connected() {
-        println!("Disconnecting");
-        client_subscribe.unsubscribe(DFLT_TOPICS[0]).unwrap();
-        client_subscribe.disconnect(None).unwrap();
-    }
-
-    if client_publisher.is_connected() {
-        println!("Disconnecting");
-        client_publisher.disconnect(None).unwrap();
+fn subscribe_topics(cli: &mqtt::Client) {
+    if let Err(e) = cli.subscribe(DFLT_TOPICS[0], QOS) {
+        println!("Error subscribes topics: {:?}", e);
+        process::exit(1);
     }
 }
 
-fn main(){
-    let client_subscribe : mqtt::Client = create_client_subscribe(DFLT_BROKER, DFLT_CLIENT[0]);
-    let client_publisher : mqtt::Client = create_client_publisher(DFLT_BROKER, DFLT_CLIENT[1]);
-    let rx = client_subscribe.start_consuming();
-    create_connection_subscribe(client_subscribe, DFLT_TOPICS[0]);
-    create_connection_publisher(client_publisher);
+fn main() {
+    // Define the set of options for the create.
+    // Use an ID for a persistent session.
+    let create_opts = mqtt::CreateOptionsBuilder::new()
+        .server_uri(DFLT_BROKER.to_string())
+        .client_id(DFLT_CLIENT[0].to_string())
+        .finalize();
+
+    // Create a client.
+    let mut cli = mqtt::Client::new(create_opts).unwrap_or_else(|err| {
+        println!("Error creating the client: {:?}", err);
+        process::exit(1);
+    });
+
+    // Initialize the consumer before connecting.
+    let rx_sub = cli.start_consuming();
+
+    // Define the set of options for the connection.
+    let conn_opts = mqtt::ConnectOptionsBuilder::new()
+        .keep_alive_interval(Duration::from_secs(20))
+        .clean_session(false)
+        .finalize();
+
+    // Connect and wait for it to complete or fail.
+    if let Err(e) = cli.connect(conn_opts) {
+        println!("Unable to connect:\n\t{:?}", e);
+        process::exit(1);
+    }
+
+    // Subscribe topics.
+    subscribe_topics(&cli);
 
     println!("Processing requests...");
-    for msg in rx.iter() {
+    for msg in rx_sub.iter() {
         if let Some(msg) = msg {
             let content = msg
                 .to_string()
                 .replace("application/1/device/3036363283397307/event/up: ", "");
-            
-            let new_content: JsonValue = analys(&content);
+            let json_content: JsonValue = serde_json::from_str(&content).unwrap();
+
+            let profile: i32 = json_content["object"]["sensor"]["Profile"]
+                .to_string()
+                .parse::<i32>()
+                .unwrap();
+            let state_code: i32 = json_content["object"]["sensor"]["StateCode"]
+                .to_string()
+                .parse::<i32>()
+                .unwrap();
+            let time: DateTime<Local> = Local::now();
+            let uuid = Uuid::new_v4();
+            let reff: &str = &format!(
+                "jzp/{}.0000",
+                json_content["devEUI"].to_string().replace("\"", "")
+            );
+            println!(
+                "{} / {} / {} / {} / {}",
+                profile, state_code, time, uuid, reff
+            );
+
+            let new_content: JsonValue;
+            if (profile == 0 && state_code == 0) || (profile == 1 && state_code < 3) {
+                new_content = json!({
+                "tx": time.to_string(),
+                "uuid": uuid.to_string(),
+                "ref": reff.to_string(),
+                "type": "presence_uwb",
+                "m": [
+                    {
+                        "tx": time.to_string(),
+                        "k": "safe_status",
+                        "v": json_content["object"]["sensor"]["Profile"].to_string(),
+                    },
+                    {
+                        "tx": time.to_string(),
+                        "k": "presence",
+                        "v": json_content["object"]["sensor"]["StateCode"],
+                    },
+                    {
+                        "tx": time.to_string(),
+                        "k": "distance",
+                        "v": json_content["object"]["sensor"]["Distance"],
+                        "u": "m",
+                    },
+                    {
+                        "tx": time.to_string(),
+                        "k": "rpm",
+                        "v": json_content["object"]["sensor"]["Rpm"],
+                    },
+                    {
+                        "k": "movement",
+                        "v": json_content["object"]["sensor"]["Movement"],
+                        "u": "mm",
+                    },
+                    {
+                        "tx": time.to_string(),
+                        "k": "signalquality",
+                        "v": json_content["object"]["sensor"]["SignalQuality"],
+                    }
+                ]});
+            } else {
+                new_content = json!({
+                "tx": time.to_string(),
+                "uuid": uuid.to_string(),
+                "ref": reff.to_string(),
+                "type": "presence_uwb",
+                "m": [
+                    {
+                        "tx": time.to_string(),
+                        "k": "safe_status",
+                        "v": json_content["object"]["sensor"]["Profile"].to_string(),
+                    },
+                    {
+                        "tx": time.to_string(),
+                        "k": "presence",
+                        "v": json_content["object"]["sensor"]["StateCode"],
+                    }
+                ]});
+            }
+
             let new_msg = mqtt::Message::new(DFLT_TOPICS[1], new_content.to_string().clone(), QOS);
-            let tok = client_publisher.publish(new_msg);
+            let tok = cli.publish(new_msg);
 
             if let Err(e) = tok {
                 println!("Error sending message: {:?}", e);
                 break;
             }
-        } else if !client_subscribe.is_connected() {
-            if try_reconnect(&client_subscribe) {
+        } else if !cli.is_connected() {
+            if try_reconnect(&cli) {
                 println!("Resubscribe topics...");
-                if let Err(e) = client_subscribe.subscribe(DFLT_TOPICS[0], QOS) {
-                    println!("Error subscribes topics: {:?}", e);
-                    process::exit(1);
-                }
+                subscribe_topics(&cli);
             } else {
                 break;
             }
         }
     }
 
-    
+    // If still connected, then disconnect now.
+    if cli.is_connected() {
+        println!("Disconnecting");
+        cli.unsubscribe_many(DFLT_TOPICS).unwrap();
+        cli.disconnect(None).unwrap();
+    }
     println!("Exiting");
-
 }
-
